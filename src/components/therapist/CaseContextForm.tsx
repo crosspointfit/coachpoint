@@ -50,7 +50,11 @@ export default function CaseContextForm({
   ) => onChange({ ...value, [key]: next });
 
   return (
-    <form onSubmit={submit} className="border-b border-border bg-white p-5 lg:p-6">
+    <form
+      onSubmit={submit}
+      autoComplete="off"
+      className="border-b border-border bg-white p-5 lg:p-6"
+    >
       <div className="flex items-start justify-between gap-6">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.13em] text-primary-700">

@@ -4,6 +4,11 @@ interface ActivityLogProps {
   activities: AgentActivity[];
 }
 
+function stableUtcTime(isoTimestamp: string): string {
+  const match = isoTimestamp.match(/T(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]} UTC` : "—";
+}
+
 const ACTOR_STYLES = {
   agent: "bg-primary-100 text-primary-700",
   therapist: "bg-[#FFF0EC] text-coral-600",
@@ -37,11 +42,11 @@ export default function ActivityLog({ activities }: ActivityLogProps) {
                   <strong className="text-ink-900">{activity.action}</strong>{" "}
                   {activity.detail}
                 </span>
-                <time className="font-mono text-[10px] leading-5 text-slate-400">
-                  {new Date(activity.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                <time
+                  dateTime={activity.createdAt}
+                  className="font-mono text-[10px] leading-5 text-slate-400"
+                >
+                  {stableUtcTime(activity.createdAt)}
                 </time>
               </li>
             ))}
@@ -51,4 +56,3 @@ export default function ActivityLog({ activities }: ActivityLogProps) {
     </section>
   );
 }
-
