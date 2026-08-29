@@ -39,7 +39,6 @@ import {
 import ActivityLog from "./ActivityLog";
 import CaseSummaryBar from "./CaseSummaryBar";
 import CaseContextForm from "./CaseContextForm";
-import ConfirmedProgramPanel from "./ConfirmedProgramPanel";
 import DraftEditor from "./DraftEditor";
 import ExerciseCatalog from "./ExerciseCatalog";
 import ExerciseDetailsPanel from "./ExerciseDetailsPanel";
@@ -571,7 +570,7 @@ export default function TherapistWorkspace() {
           onReset={resetWorkspace}
         />
 
-        <div className="grid min-h-[680px] lg:h-[calc(100vh-250px)] lg:min-h-[640px] lg:max-h-[760px] lg:grid-cols-[minmax(0,1.12fr)_minmax(460px,0.88fr)] lg:overflow-hidden">
+        <div className="grid lg:grid-cols-[minmax(0,1.12fr)_minmax(460px,0.88fr)]">
           <ExerciseCatalog
             exercises={visibleExercises}
             query={query}
@@ -606,15 +605,13 @@ export default function TherapistWorkspace() {
             onRemoveItem={removeItem}
             onMoveItem={moveItem}
             onConfirm={confirmDraft}
+            confirmedProgram={confirmedProgram}
             validationErrors={draftErrors}
             noticeErrors={agentErrors}
             confirmDisabled={confirmationBlocked}
           />
         </div>
 
-        {confirmedProgram && (
-          <ConfirmedProgramPanel program={confirmedProgram} />
-        )}
         <ActivityLog activities={activities} />
       </div>
 

@@ -9,7 +9,7 @@
 ## Full-view comparison evidence
 
 - Combined evidence: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-workspace-comparison.png`
-- The implementation preserves the source hierarchy: primary navigation, compact case strip, image-dominant two-column library, whole-card selection, fixed selection tray, compact prescription editor, one consequential coral confirmation action, and quiet attributed activity.
+- The implementation preserves the source hierarchy: primary navigation, compact case strip, image-dominant two-column library, whole-card selection, sticky selection tray, compact prescription editor, one consequential coral confirmation action, and quiet attributed activity.
 - The implementation intentionally gives slightly more horizontal space to the gallery and uses denser prescription rows. This supports the approved “choose from a movement library” workflow and the request to reduce text/table density.
 - The black circular `N` visible at the lower-left of development captures is the Next.js development toolbar, not product UI.
 
@@ -23,7 +23,7 @@
 ## Required fidelity surfaces
 
 - Fonts and typography: IBM Plex Sans/clinical system fallbacks retain the source's compact humanist hierarchy. Display headings, metadata, monospace time values, truncation, line height, and optical weights remain legible at the target viewport.
-- Spacing and layout rhythm: the split workspace, compact top strip, 12–16 px radii, quiet borders, low elevation, independent scroll regions, fixed tray, and fixed confirmation footer follow the source rhythm. The denser right column is an intentional product adaptation.
+- Spacing and layout rhythm: the split workspace, compact top strip, 12–16 px radii, quiet borders, low elevation, one document scroll, sticky right-side draft, and sticky selection tray retain the source rhythm without nested scrolling. The denser right column is an intentional product adaptation.
 - Colors and visual tokens: navy `#14355F`, blue `#0369A1`, pale blue `#E0F0FA`, warm off-white, and coral `#EF5B3E` map directly to the imported PT design system. There are no gradients, glass effects, or ornamental color drift.
 - Image quality and asset fidelity: the implementation uses the original PT exercise illustrations and Heroicons; no placeholder, emoji, custom SVG approximation, or CSS-drawn substitute is used. Gallery crops are sharper and more horizontal than the source mock's composed thumbnails, but each movement remains recognizable.
 - Copy and content: labels are workflow-specific and concise. The implementation retains synthetic-data labeling, clinical-review language, agent/therapist attribution, and the explicit therapist-only consequence boundary.
@@ -38,13 +38,16 @@
 
 - Mobile screenshot: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-workspace-mobile.png` at `375 × 812`; document scroll width equals viewport width (`375`), with the region chip row intentionally horizontally scrollable.
 - Tablet screenshot: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-workspace-tablet.png` at `768 × 1024`; document scroll width equals viewport width (`768`).
-- Primary interactions tested in the browser: gallery select/deselect, three-item selection tray, batch add, remove/restored item, dosage editor open/close, case drawer open/close, therapist confirmation, and generated patient-link state.
+- Primary interactions tested in the browser: gallery select/deselect, three-item selection tray, batch add, remove/restored item, dosage editor open/close, case drawer open/close, therapist confirmation, CTA-to-inline-success replacement, copy/open patient actions, and generated patient-link state.
+- Short-viewport regression checks: `1024 × 650`, `1280 × 720`, `1502 × 754`, `768 × 1024`, and `375 × 812`. The selection tray and its action remained fully visible at every size, document width matched viewport width, and no library/draft nested vertical scroller remained.
+- Long-content regression: an eight-item draft at `1280 × 720` kept the draft header and confirmation action visible throughout document scrolling; a one-result catalog filter kept the selection tray visible until the shared grid boundary.
 - Browser console after the final pass: zero errors and zero warnings. All visible optimized exercise images completed with non-zero natural widths. No unlabeled buttons or document-level horizontal overflow were detected.
 
 ## Comparison history
 
 - Formal pass 1: the source and final implementation were normalized into one combined input at a matched desktop viewport and selected-library state. No actionable P0/P1/P2 difference was found, so no post-comparison visual fix iteration was required.
-- Capture normalization before the formal pass: the gallery's independent scroll region was returned to its first row and the interaction state was set to three staged selections so the source and implementation showed comparable gallery-selection behavior. This changed only the evidence state, not product code.
+- User-feedback pass 2: a `1502 × 754` capture exposed a clipped bottom tray, competing document/library scroll regions, and confirmation feedback below the fold. The fixed-height grid and both column scrollers were removed, the tray became an inset document-sticky control, the draft became a document-sticky column, and confirmation now replaces the CTA in place with `Confirmed`, copy, and open actions. Evidence: `/Users/tywang/Documents/AI/coachpoint/design-references/reported-scroll-before.png` and `/Users/tywang/Documents/AI/coachpoint/design-references/reported-scroll-after.png`.
+- Capture normalization after pass 2: the document was returned to its top position and the interaction state was set to three staged selections so source and implementation showed comparable gallery-selection behavior.
 
 ## Implementation checklist
 
@@ -52,8 +55,8 @@
 - [x] Multi-select tray with thumbnails and one batch-add action
 - [x] Compact dose summaries with progressive disclosure for editing
 - [x] Agent-created draft attribution and collapsible clinical notes
-- [x] Therapist-only confirmation and patient-link output
-- [x] Responsive header, bounded mobile gallery, and stacked mobile tray
+- [x] Therapist-only confirmation with immediate inline success and patient-link actions
+- [x] Responsive header, single document scroll, sticky gallery tray, and stacked mobile tray
 - [x] Desktop/mobile/tablet visual checks and clean runtime console
 - [x] Brand-token and anti-slop review
 

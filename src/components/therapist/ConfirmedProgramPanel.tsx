@@ -11,10 +11,12 @@ import type { ConfirmedProgram } from "@/domain/types";
 
 interface ConfirmedProgramPanelProps {
   program: ConfirmedProgram;
+  compact?: boolean;
 }
 
 export default function ConfirmedProgramPanel({
   program,
+  compact = false,
 }: ConfirmedProgramPanelProps) {
   const href = `/patient/${program.code}`;
   const displayCode =
@@ -31,20 +33,36 @@ export default function ConfirmedProgramPanel({
   };
 
   return (
-    <section className="border-t border-primary-100 bg-[#F3FAFD] px-5 py-3 lg:px-7" aria-label="Confirmed prescription">
-      <div className="flex flex-wrap items-center gap-4">
-        <CheckCircleIcon className="h-7 w-7 shrink-0 text-primary-700" aria-hidden="true" />
+    <section
+      className={
+        compact
+          ? "rounded-xl border border-primary-100 bg-[#F3FAFD] p-2"
+          : "border-t border-primary-100 bg-[#F3FAFD] px-5 py-3 lg:px-7"
+      }
+      aria-label="Confirmed prescription"
+      aria-live="polite"
+      role="status"
+    >
+      <div className={`flex flex-wrap items-center ${compact ? "gap-3" : "gap-4"}`}>
+        <CheckCircleIcon
+          className={`${compact ? "h-6 w-6" : "h-7 w-7"} shrink-0 text-primary-700`}
+          aria-hidden="true"
+        />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-extrabold text-ink-900" title={program.code}>
             Prescription confirmed · {displayCode}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            {program.items.length} movements · {program.estimatedMinutes.toFixed(1)} minutes · revision {program.revision}
-          </p>
+          {!compact && (
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              {program.items.length} movements · {program.estimatedMinutes.toFixed(1)} minutes · revision {program.revision}
+            </p>
+          )}
         </div>
-        <p className="hidden max-w-xs truncate rounded-lg bg-white px-3 py-2 font-mono text-[10px] text-slate-500 xl:block">
-          {href}
-        </p>
+        {!compact && (
+          <p className="hidden max-w-xs truncate rounded-lg bg-white px-3 py-2 font-mono text-[10px] text-slate-500 xl:block">
+            {href}
+          </p>
+        )}
         <button
           type="button"
           onClick={() => void copyLink()}

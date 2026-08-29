@@ -59,7 +59,7 @@ export default function ExerciseCatalog({
   return (
     <section
       aria-labelledby="catalog-heading"
-      className="flex h-[720px] min-h-0 min-w-0 flex-col bg-[#FCFCF9] lg:h-auto"
+      className="flex h-full min-w-0 flex-col bg-[#FCFCF9]"
     >
       <div className="flex items-end justify-between gap-4 bg-white px-5 pb-3 pt-4 lg:px-6">
         <div>
@@ -78,7 +78,7 @@ export default function ExerciseCatalog({
         </p>
       </div>
 
-      <div className="border-b border-border bg-white px-5 pb-4 lg:px-6">
+      <div className="sticky top-0 z-10 border-b border-border bg-white px-5 pb-4 lg:px-6">
         <div className="flex items-center gap-2">
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search the exercise library</span>
@@ -119,7 +119,7 @@ export default function ExerciseCatalog({
           </label>
         </div>
 
-        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5" aria-label="Body region filters">
+        <div className="mt-3 flex gap-1.5 overflow-x-auto overflow-y-hidden pb-0.5" aria-label="Body region filters">
           {REGIONS.map((region) => {
             const active = bodyRegion === region.value;
             return (
@@ -141,7 +141,7 @@ export default function ExerciseCatalog({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3.5 lg:p-4">
+      <div className="flex-1 p-3.5 lg:p-4">
         {exercises.length === 0 ? (
           <div className="flex h-full min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
             <p className="font-extrabold text-ink-900">No matching movements</p>
@@ -239,7 +239,7 @@ export default function ExerciseCatalog({
       </div>
 
       <div
-        className={`border-t border-border bg-white px-4 py-3 transition-opacity ${
+        className={`sticky bottom-2 z-20 mx-2 rounded-xl border border-border bg-white px-4 py-3 transition-opacity ${
           stagedExercises.length === 0 ? "opacity-65" : "shadow-[0_-10px_24px_rgba(20,53,95,0.07)]"
         }`}
         aria-live="polite"
@@ -303,7 +303,8 @@ export default function ExerciseCatalog({
             className="focus-ring inline-flex h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-4 text-xs font-extrabold text-white hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
           >
             <PlusIcon className="h-4 w-4" aria-hidden="true" />
-            Add to prescription
+            <span className="hidden xl:inline">Add to prescription</span>
+            <span className="xl:hidden">Add selected</span>
           </button>
         </div>
       </div>

@@ -13,11 +13,13 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import type {
+  ConfirmedProgram,
   DomainError,
   Exercise,
   ProgramDraft,
   ProgramItem,
 } from "@/domain/types";
+import ConfirmedProgramPanel from "./ConfirmedProgramPanel";
 
 interface DraftEditorProps {
   draft: ProgramDraft | null;
@@ -27,6 +29,7 @@ interface DraftEditorProps {
   onRemoveItem: (index: number) => void;
   onMoveItem: (from: number, to: number) => void;
   onConfirm: () => void;
+  confirmedProgram?: ConfirmedProgram | null;
   validationErrors?: DomainError[];
   noticeErrors?: DomainError[];
   confirmDisabled?: boolean;
@@ -50,6 +53,7 @@ export default function DraftEditor({
   onRemoveItem,
   onMoveItem,
   onConfirm,
+  confirmedProgram = null,
   validationErrors = [],
   noticeErrors = [],
   confirmDisabled = false,
@@ -83,9 +87,9 @@ export default function DraftEditor({
   return (
     <section
       aria-labelledby="draft-heading"
-      className="flex min-h-[620px] min-w-0 flex-col border-t border-border bg-white lg:min-h-0 lg:border-l lg:border-t-0"
+      className="flex h-full min-w-0 flex-col border-t border-border bg-white lg:border-l lg:border-t-0"
     >
-      <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-4 lg:px-6">
+      <div className="flex items-end justify-between gap-4 border-b border-border bg-white px-5 py-3 lg:sticky lg:top-0 lg:z-10 lg:px-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-700">
@@ -124,7 +128,7 @@ export default function DraftEditor({
       </div>
 
       {!draft ? (
-        <div className="flex min-h-0 flex-1 flex-col bg-[#FCFCF9] p-6">
+        <div className="flex min-h-[420px] flex-col bg-[#FCFCF9] p-6">
           {allErrors.length > 0 && (
             <div role="alert" className="rounded-xl border border-[#E9D7B6] bg-[#FFF9ED] px-4 py-3 text-xs text-[#74501D]">
               <p className="font-bold">The agent draft needs clarification</p>
@@ -157,7 +161,7 @@ export default function DraftEditor({
         </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[#FCFCF9] p-4 lg:p-5">
+          <div className="flex-1 bg-[#FCFCF9] p-4">
             <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-white px-3.5 py-2.5">
               <div className="min-w-0">
                 <p className="truncate text-xs font-extrabold text-ink-900">
@@ -167,8 +171,14 @@ export default function DraftEditor({
                   Revision {draft.revision} · {draft.items.length} movements
                 </p>
               </div>
-              <span className="shrink-0 rounded-full bg-[#FFF0EC] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-coral-600">
-                Awaiting review
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] ${
+                  confirmedProgram
+                    ? "bg-primary-100 text-primary-700"
+                    : "bg-[#FFF0EC] text-coral-600"
+                }`}
+              >
+                {confirmedProgram ? "Confirmed" : "Awaiting review"}
               </span>
             </div>
 
@@ -373,19 +383,31 @@ export default function DraftEditor({
             )}
           </div>
 
-          <div className="border-t border-border bg-white px-5 py-3.5 lg:px-6">
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={confirmDisabled || draft.items.length === 0}
-              className="focus-ring inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-coral-500 px-5 text-sm font-extrabold text-white shadow-[0_4px_12px_rgba(239,91,62,0.18)] hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-            >
-              <ShieldCheckIcon className="h-5 w-5" aria-hidden="true" />
-              Confirm prescription
-            </button>
-            <p className="mt-1.5 text-center text-[10px] text-slate-400">
-              Only the treating therapist can complete this action.
-            </p>
+          <div
+            className={`sticky bottom-2 z-20 mx-2 rounded-xl bg-white shadow-[0_-8px_20px_rgba(20,53,95,0.08)] ${
+              confirmedProgram
+                ? "p-0"
+                : "border border-border px-5 py-3.5 lg:px-6"
+            }`}
+          >
+            {confirmedProgram ? (
+              <ConfirmedProgramPanel program={confirmedProgram} compact />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  disabled={confirmDisabled || draft.items.length === 0}
+                  className="focus-ring inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-coral-500 px-5 text-sm font-extrabold text-white shadow-[0_4px_12px_rgba(239,91,62,0.18)] hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                >
+                  <ShieldCheckIcon className="h-5 w-5" aria-hidden="true" />
+                  Confirm prescription
+                </button>
+                <p className="mt-1.5 text-center text-[10px] text-slate-400">
+                  Only the treating therapist can complete this action.
+                </p>
+              </>
+            )}
           </div>
         </>
       )}
