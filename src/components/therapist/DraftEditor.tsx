@@ -1,6 +1,17 @@
 "use client";
 
-import type { DragEvent } from "react";
+import Image from "next/image";
+import { useState, type DragEvent } from "react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  Bars3Icon,
+  ChevronDownIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import type {
   DomainError,
   Exercise,
@@ -17,11 +28,19 @@ interface DraftEditorProps {
   onMoveItem: (from: number, to: number) => void;
   onConfirm: () => void;
   validationErrors?: DomainError[];
+  noticeErrors?: DomainError[];
   confirmDisabled?: boolean;
 }
 
 const NUMBER_CLASS =
-  "focus-ring h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-center font-mono text-xs tabular-nums";
+  "focus-ring mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-center font-mono text-xs tabular-nums";
+
+function dosageLabel(item: ProgramItem): string {
+  const volume = item.reps
+    ? `${item.sets} sets × ${item.reps} reps`
+    : `${item.sets} sets × ${item.holdSeconds ?? 0} sec hold`;
+  return `${volume} · ${item.restSeconds}s rest · ${item.frequencyPerDay}× daily`;
+}
 
 export default function DraftEditor({
   draft,
@@ -32,145 +51,250 @@ export default function DraftEditor({
   onMoveItem,
   onConfirm,
   validationErrors = [],
+  noticeErrors = [],
   confirmDisabled = false,
 }: DraftEditorProps) {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
   const drop = (event: DragEvent<HTMLLIElement>, target: number) => {
     event.preventDefault();
     const from = Number(event.dataTransfer.getData("text/plain"));
-    if (Number.isInteger(from)) onMoveItem(from, target);
+    if (Number.isInteger(from)) {
+      setEditingIndex(null);
+      onMoveItem(from, target);
+    }
   };
 
+  const allErrors = [...validationErrors, ...noticeErrors];
+  const warnings = [
+    ...(draft?.warnings ?? []),
+    ...allErrors.map((error) => error.message),
+  ];
+  const estimateUnavailable = validationErrors.some((error) =>
+    error.code !== "duration_exceeded" &&
+    ["items", "minutesPerDay"].some(
+      (field) => error.field === field || error.field?.startsWith(`${field}.`),
+    ),
+  );
+  const durationExceeded = validationErrors.some(
+    (error) => error.code === "duration_exceeded",
+  );
+
   return (
-    <section aria-labelledby="draft-heading" className="min-w-0 border-l border-border bg-[#FCFCF9]">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-white px-5 py-4 lg:px-6">
+    <section
+      aria-labelledby="draft-heading"
+      className="flex min-h-[620px] min-w-0 flex-col border-t border-border bg-white lg:min-h-0 lg:border-l lg:border-t-0"
+    >
+      <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-4 lg:px-6">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.13em] text-primary-700">
-            Prescription draft
-          </p>
-          <h2 id="draft-heading" className="mt-1 text-lg font-extrabold text-ink-900">
-            Human review required
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-700">
+              Prescription draft
+            </p>
+            {draft && (
+              <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-primary-700">
+                {draft.source === "agent" ? "Agent-created" : "Therapist-created"}
+              </span>
+            )}
+          </div>
+          <h2
+            id="draft-heading"
+            className="mt-1 text-xl font-black tracking-[-0.02em] text-ink-900"
+          >
+            Review and refine
           </h2>
         </div>
         {draft && (
-          <div className="text-right">
-            <p className="font-mono text-lg font-bold tabular-nums text-ink-900">
-              {draft.estimatedMinutes.toFixed(1)} min
+          <div className="shrink-0 text-right">
+            <p className="font-mono text-xl font-bold tabular-nums text-ink-900">
+              {estimateUnavailable ? "—" : draft.estimatedMinutes.toFixed(1)}
+              {!estimateUnavailable && (
+                <span className="ml-1 text-xs text-slate-400">min</span>
+              )}
             </p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
-              estimated daily time
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              {estimateUnavailable
+                ? "Needs valid dose"
+                : durationExceeded
+                  ? "Over daily target"
+                  : "Daily estimate"}
             </p>
           </div>
         )}
       </div>
 
       {!draft ? (
-        <div className="m-5 border border-dashed border-slate-300 bg-white px-6 py-14 text-center lg:m-6">
-          <p className="text-lg font-extrabold text-ink-900">No draft yet</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-            Add exercises manually, or ask your agent to search the catalog and create a time-bounded draft.
-          </p>
-          <button
-            type="button"
-            onClick={onAddStarterDraft}
-            className="focus-ring mt-5 inline-flex h-10 items-center rounded-xl border border-primary-700 px-4 text-xs font-bold text-primary-700 hover:bg-primary-100"
-          >
-            Start an empty draft
-          </button>
-        </div>
-      ) : (
-        <div className="p-4 lg:p-5">
-          <div className="mb-3 flex items-center justify-between gap-4 border-l-2 border-primary-700 bg-white px-4 py-3">
-            <div>
-              <p className="text-sm font-extrabold text-ink-900">{draft.patientLabel}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Revision {draft.revision} · {draft.source === "agent" ? "Agent draft" : "Therapist draft"}
-              </p>
-            </div>
-            <span className="rounded-full bg-[#FFF0EC] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-coral-600">
-              Not prescribed
-            </span>
-          </div>
-
-          {(draft.warnings.length > 0 || validationErrors.length > 0) && (
-            <div role="alert" className="mb-3 bg-[#FFF7E8] px-4 py-3 text-xs leading-5 text-[#875000]">
-              <p className="font-bold">Review before confirmation</p>
-              <ul className="mt-1 list-disc pl-4">
-                {[...draft.warnings, ...validationErrors.map((error) => error.message)].map(
-                  (warning, index) => (
-                    <li key={`${warning}-${index}`}>{warning}</li>
-                  ),
-                )}
+        <div className="flex min-h-0 flex-1 flex-col bg-[#FCFCF9] p-6">
+          {allErrors.length > 0 && (
+            <div role="alert" className="rounded-xl border border-[#E9D7B6] bg-[#FFF9ED] px-4 py-3 text-xs text-[#74501D]">
+              <p className="font-bold">The agent draft needs clarification</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4 leading-5">
+                {allErrors.map((error) => (
+                  <li key={`${error.code}-${error.field ?? "draft"}`}>{error.message}</li>
+                ))}
               </ul>
             </div>
           )}
-
-          {draft.items.length === 0 ? (
-            <div className="border border-dashed border-slate-300 bg-white px-5 py-10 text-center text-sm text-slate-500">
-              Add an exercise from the catalog to build this draft.
+          <div className="flex flex-1 items-center justify-center">
+            <div className="max-w-sm text-center">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-700">
+              <PlusIcon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <p className="mt-4 text-base font-extrabold text-ink-900">Your draft is ready to begin</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Select movements from the gallery or let the agent assemble the first version.
+            </p>
+            <button
+              type="button"
+              onClick={onAddStarterDraft}
+              className="focus-ring mt-5 inline-flex h-10 items-center gap-2 rounded-xl border border-primary-700 px-4 text-xs font-bold text-primary-700 hover:bg-primary-100"
+            >
+              <PlusIcon className="h-4 w-4" aria-hidden="true" />
+              Start an empty draft
+            </button>
             </div>
-          ) : (
-            <ol className="space-y-2">
-              {draft.items.map((item, index) => {
-                const exercise = resolveExercise(item.exerciseId);
-                if (!exercise) return null;
-                return (
-                  <li
-                    key={`${item.exerciseId}-${index}`}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("text/plain", String(index));
-                    }}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => drop(event, index)}
-                    className="border border-border bg-white p-3 shadow-[var(--cp-shadow-card)]"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-900 font-mono text-[11px] font-bold text-white"
-                        aria-hidden="true"
-                      >
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-extrabold text-ink-900">{exercise.name}</p>
-                            <p className="mt-0.5 text-[11px] text-slate-500">
-                              {exercise.nameZh} · ~{exercise.estimatedMinutes} min
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => onMoveItem(index, index - 1)}
-                              disabled={index === 0}
-                              className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-xs text-slate-600 disabled:opacity-30"
-                              aria-label={`Move ${exercise.name} up`}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onMoveItem(index, index + 1)}
-                              disabled={index === draft.items.length - 1}
-                              className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-xs text-slate-600 disabled:opacity-30"
-                              aria-label={`Move ${exercise.name} down`}
-                            >
-                              ↓
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onRemoveItem(index)}
-                              className="focus-ring flex h-8 items-center rounded-lg px-2 text-[11px] font-bold text-danger hover:bg-[#FBEEEA]"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[#FCFCF9] p-4 lg:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-white px-3.5 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-extrabold text-ink-900">
+                  {draft.patientLabel}
+                </p>
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  Revision {draft.revision} · {draft.items.length} movements
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#FFF0EC] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-coral-600">
+                Awaiting review
+              </span>
+            </div>
 
-                        <div className="mt-3 grid grid-cols-5 gap-2">
-                          <label className="text-center text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500">
+            {warnings.length > 0 && (
+              <details className="group mb-3 rounded-xl border border-[#E9D7B6] bg-[#FFF9ED] text-[#74501D]">
+                <summary className="focus-ring flex list-none items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold [&::-webkit-details-marker]:hidden">
+                  <span>{warnings.length} clinical review note{warnings.length === 1 ? "" : "s"}</span>
+                  <ChevronDownIcon
+                    className="h-4 w-4 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <ul className="space-y-1 border-t border-[#E9D7B6] px-4 py-3 text-[11px] leading-5">
+                  {warnings.map((warning, index) => (
+                    <li key={`${warning}-${index}`} className="list-disc ml-4">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            {draft.items.length === 0 ? (
+              <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
+                <p className="text-sm font-extrabold text-ink-900">No movements yet</p>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Select cards in the gallery, then add them to this draft.
+                </p>
+              </div>
+            ) : (
+              <ol className="space-y-2.5">
+                {draft.items.map((item, index) => {
+                  const exercise = resolveExercise(item.exerciseId);
+                  if (!exercise) return null;
+                  const editing = editingIndex === index;
+                  return (
+                    <li
+                      key={`${item.exerciseId}-${index}`}
+                      draggable={!editing}
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", String(index));
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => drop(event, index)}
+                      className="rounded-2xl border border-border bg-white p-3 shadow-[var(--cp-shadow-card)]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="mt-1 flex h-7 w-5 shrink-0 items-center justify-center text-slate-300" title="Drag to reorder">
+                          <Bars3Icon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <div className="relative h-[70px] w-[70px] shrink-0 overflow-hidden rounded-xl bg-[#F1F6F7]">
+                          <Image
+                            src={exercise.imagePath}
+                            alt=""
+                            fill
+                            sizes="70px"
+                            className="object-cover object-top"
+                          />
+                          <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink-900 font-mono text-[9px] font-bold text-white">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-extrabold text-ink-900">
+                                {exercise.name}
+                              </p>
+                              <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                                {dosageLabel(item)}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIndex(null);
+                                  onMoveItem(index, index - 1);
+                                }}
+                                disabled={index === 0}
+                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-25"
+                                aria-label={`Move ${exercise.name} up`}
+                              >
+                                <ArrowUpIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIndex(null);
+                                  onMoveItem(index, index + 1);
+                                }}
+                                disabled={index === draft.items.length - 1}
+                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-25"
+                                aria-label={`Move ${exercise.name} down`}
+                              >
+                                <ArrowDownIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIndex(null);
+                                  onRemoveItem(index);
+                                }}
+                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-[#FBEEEA] hover:text-danger"
+                                aria-label={`Remove ${exercise.name}`}
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditingIndex(editing ? null : index)}
+                            className="focus-ring mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-primary-700 hover:text-primary-800"
+                            aria-expanded={editing}
+                          >
+                            <PencilSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                            {editing ? "Done editing" : "Edit dosage"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {editing && (
+                        <div className="mt-3 grid grid-cols-5 gap-2 border-t border-border pt-3">
+                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
                             Sets
                             <input
                               className={NUMBER_CLASS}
@@ -183,7 +307,7 @@ export default function DraftEditor({
                               }
                             />
                           </label>
-                          <label className="text-center text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
                             Reps
                             <input
                               className={NUMBER_CLASS}
@@ -193,14 +317,12 @@ export default function DraftEditor({
                               value={item.reps ?? ""}
                               onChange={(event) =>
                                 onUpdateItem(index, {
-                                  reps: event.target.value
-                                    ? Number(event.target.value)
-                                    : undefined,
+                                  reps: event.target.value ? Number(event.target.value) : undefined,
                                 })
                               }
                             />
                           </label>
-                          <label className="text-center text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
                             Hold
                             <input
                               className={NUMBER_CLASS}
@@ -210,14 +332,12 @@ export default function DraftEditor({
                               value={item.holdSeconds ?? ""}
                               onChange={(event) =>
                                 onUpdateItem(index, {
-                                  holdSeconds: event.target.value
-                                    ? Number(event.target.value)
-                                    : undefined,
+                                  holdSeconds: event.target.value ? Number(event.target.value) : undefined,
                                 })
                               }
                             />
                           </label>
-                          <label className="text-center text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
                             Daily
                             <input
                               className={NUMBER_CLASS}
@@ -226,13 +346,11 @@ export default function DraftEditor({
                               max={5}
                               value={item.frequencyPerDay}
                               onChange={(event) =>
-                                onUpdateItem(index, {
-                                  frequencyPerDay: Number(event.target.value),
-                                })
+                                onUpdateItem(index, { frequencyPerDay: Number(event.target.value) })
                               }
                             />
                           </label>
-                          <label className="text-center text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
                             Rest
                             <input
                               className={NUMBER_CLASS}
@@ -242,37 +360,35 @@ export default function DraftEditor({
                               step={5}
                               value={item.restSeconds}
                               onChange={(event) =>
-                                onUpdateItem(index, {
-                                  restSeconds: Number(event.target.value),
-                                })
+                                onUpdateItem(index, { restSeconds: Number(event.target.value) })
                               }
                             />
                           </label>
                         </div>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
 
-          <div className="mt-5 border-t border-border pt-5">
+          <div className="border-t border-border bg-white px-5 py-3.5 lg:px-6">
             <button
               type="button"
               onClick={onConfirm}
               disabled={confirmDisabled || draft.items.length === 0}
-              className="focus-ring inline-flex h-12 w-full items-center justify-center rounded-xl bg-coral-500 px-5 text-sm font-extrabold text-white hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="focus-ring inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-coral-500 px-5 text-sm font-extrabold text-white shadow-[0_4px_12px_rgba(239,91,62,0.18)] hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             >
-              Therapist: confirm and create patient link
+              <ShieldCheckIcon className="h-5 w-5" aria-hidden="true" />
+              Confirm prescription
             </button>
-            <p className="mt-2 text-center text-[11px] leading-5 text-slate-500">
-              This consequential action is intentionally unavailable to the agent.
+            <p className="mt-1.5 text-center text-[10px] text-slate-400">
+              Only the treating therapist can complete this action.
             </p>
           </div>
-        </div>
+        </>
       )}
     </section>
   );
 }
-

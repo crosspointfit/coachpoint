@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  ArrowTopRightOnSquareIcon,
+  CheckCircleIcon,
+  ClipboardDocumentIcon,
+} from "@heroicons/react/24/outline";
 import type { ConfirmedProgram } from "@/domain/types";
 
 interface ConfirmedProgramPanelProps {
@@ -12,6 +17,10 @@ export default function ConfirmedProgramPanel({
   program,
 }: ConfirmedProgramPanelProps) {
   const href = `/patient/${program.code}`;
+  const displayCode =
+    program.code.length > 20
+      ? `${program.code.slice(0, 10)}…${program.code.slice(-6)}`
+      : program.code;
   const [copied, setCopied] = useState(false);
 
   const copyLink = async () => {
@@ -22,38 +31,36 @@ export default function ConfirmedProgramPanel({
   };
 
   return (
-    <section className="border-t-2 border-primary-700 bg-[#F3FAFD] px-5 py-5 lg:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-5">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary-700">
-            Confirmed by therapist
+    <section className="border-t border-primary-100 bg-[#F3FAFD] px-5 py-3 lg:px-7" aria-label="Confirmed prescription">
+      <div className="flex flex-wrap items-center gap-4">
+        <CheckCircleIcon className="h-7 w-7 shrink-0 text-primary-700" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold text-ink-900" title={program.code}>
+            Prescription confirmed · {displayCode}
           </p>
-          <h2 className="mt-1.5 text-xl font-extrabold text-ink-900">
-            Patient program {program.code}
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            {program.items.length} exercises · {program.estimatedMinutes.toFixed(1)} minutes · revision {program.revision}
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            {program.items.length} movements · {program.estimatedMinutes.toFixed(1)} minutes · revision {program.revision}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={href}
-            className="focus-ring inline-flex h-11 items-center rounded-xl bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-800"
-          >
-            Open patient link
-          </Link>
-          <button
-            type="button"
-            onClick={() => void copyLink()}
-            className="focus-ring inline-flex h-11 items-center rounded-xl border border-primary-700 bg-white px-4 text-sm font-bold text-primary-700 hover:bg-primary-100"
-          >
-            {copied ? "Copied" : "Copy link"}
-          </button>
-        </div>
+        <p className="hidden max-w-xs truncate rounded-lg bg-white px-3 py-2 font-mono text-[10px] text-slate-500 xl:block">
+          {href}
+        </p>
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-primary-100 bg-white px-3 text-xs font-bold text-primary-700 hover:border-primary-700"
+        >
+          <ClipboardDocumentIcon className="h-4 w-4" aria-hidden="true" />
+          {copied ? "Copied" : "Copy link"}
+        </button>
+        <Link
+          href={href}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary-700 px-3 text-xs font-bold text-white hover:bg-primary-800"
+        >
+          Open patient view
+          <ArrowTopRightOnSquareIcon className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
-      <p className="mt-4 break-all rounded-lg border border-primary-100 bg-white px-3 py-2 font-mono text-xs text-slate-600">
-        {href}
-      </p>
     </section>
   );
 }

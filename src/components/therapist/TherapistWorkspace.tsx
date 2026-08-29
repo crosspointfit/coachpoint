@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import {
   confirmProgram,
   createProgramDraft,
+  estimateProgramDuration,
   getExerciseById,
   searchExercises,
   validateCaseContext,
@@ -35,12 +37,12 @@ import {
   writeTherapistWorkspace,
 } from "@/lib/therapistStorage";
 import ActivityLog from "./ActivityLog";
+import CaseSummaryBar from "./CaseSummaryBar";
 import CaseContextForm from "./CaseContextForm";
 import ConfirmedProgramPanel from "./ConfirmedProgramPanel";
 import DraftEditor from "./DraftEditor";
 import ExerciseCatalog from "./ExerciseCatalog";
 import ExerciseDetailsPanel from "./ExerciseDetailsPanel";
-import WebMcpSupportNotice from "./WebMcpSupportNotice";
 
 const DEFAULT_CONTEXT: CaseContext = {
   patientLabel: "Demo Patient — Shoulder",
@@ -105,17 +107,22 @@ function conciseExercise(exercise: Exercise) {
 
 export default function TherapistWorkspace() {
   const [caseContext, setCaseContext] = useState<CaseContext>(DEFAULT_CONTEXT);
+  const [caseEditValue, setCaseEditValue] =
+    useState<CaseContext>(DEFAULT_CONTEXT);
   const [draft, setDraft] = useState<ProgramDraft | null>(null);
   const [confirmedProgram, setConfirmedProgram] =
     useState<ConfirmedProgram | null>(null);
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [caseErrors, setCaseErrors] = useState<DomainError[]>([]);
   const [draftErrors, setDraftErrors] = useState<DomainError[]>([]);
+  const [agentErrors, setAgentErrors] = useState<DomainError[]>([]);
   const [query, setQuery] = useState("");
-  const [bodyRegion, setBodyRegion] = useState<BodyRegion | undefined>(
-    "shoulder",
-  );
+  const [bodyRegion, setBodyRegion] = useState<BodyRegion | undefined>();
   const [difficulty, setDifficulty] = useState<Difficulty | undefined>();
+  const [stagedExerciseIds, setStagedExerciseIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [caseEditorOpen, setCaseEditorOpen] = useState(false);
   const [inspectedExercise, setInspectedExercise] = useState<Exercise | null>(
     null,
   );
@@ -136,10 +143,10 @@ export default function TherapistWorkspace() {
       const stored = readTherapistWorkspace();
       if (stored) {
         setCaseContext(stored.caseContext);
+        setCaseEditValue(stored.caseContext);
         setDraft(stored.draft);
         setConfirmedProgram(stored.confirmedProgram);
         setActivities(stored.activities);
-        setBodyRegion(stored.caseContext.bodyRegion);
       } else {
         setActivities([
           makeActivity(
@@ -166,9 +173,9 @@ export default function TherapistWorkspace() {
     });
   }, [activities, caseContext, confirmedProgram, draft, hydrated]);
 
-  const toolDescriptors = useMemo(
-    () =>
-      createTherapistToolDescriptors({
+  const toolDescriptors = useMemo(() => {
+    if (!hydrated) return [];
+    return createTherapistToolDescriptors({
         searchExercises: async (input: SearchExercisesInput) => {
           if (typeof input?.query !== "string" || input.query.trim() === "") {
             return {
@@ -272,20 +279,17 @@ export default function TherapistWorkspace() {
             source: "agent",
           });
           if (!result.ok) {
-            setCaseErrors(
-              result.errors.filter((error) =>
-                error.field?.startsWith("caseContext"),
-              ),
-            );
-            setDraftErrors(result.errors);
+            setAgentErrors(result.errors);
             return result;
           }
           setCaseContext(result.value.caseContext);
-          setBodyRegion(result.value.caseContext.bodyRegion);
+          setCaseEditValue(result.value.caseContext);
           setDraft(result.value);
+          setStagedExerciseIds(new Set());
           setConfirmedProgram(null);
           setCaseErrors([]);
           setDraftErrors([]);
+          setAgentErrors([]);
           appendActivity(
             "agent",
             "Created a visible draft.",
@@ -302,9 +306,8 @@ export default function TherapistWorkspace() {
             },
           };
         },
-      }),
-    [appendActivity],
-  );
+      });
+  }, [appendActivity, hydrated]);
 
   const webMcp = useWebMcpTools(toolDescriptors);
 
@@ -314,18 +317,30 @@ export default function TherapistWorkspace() {
         query,
         bodyRegion,
         difficulty,
-        limit: 15,
+        limit: 30,
       }),
     [bodyRegion, difficulty, query],
   );
 
-  const selectedIds = useMemo(
+  const prescribedIds = useMemo(
     () => new Set(draft?.items.map((item) => item.exerciseId) ?? []),
     [draft],
   );
 
+  const stagedExercises = useMemo(
+    () =>
+      [...stagedExerciseIds]
+        .map((exerciseId) => getExerciseById(exerciseId))
+        .filter((exercise): exercise is Exercise => Boolean(exercise)),
+    [stagedExerciseIds],
+  );
+
+  const confirmationBlocked =
+    caseErrors.length > 0 ||
+    draftErrors.some((error) => error.code !== "storage_failure");
+
   const applyCaseContext = () => {
-    const result = validateCaseContext(caseContext);
+    const result = validateCaseContext(caseEditValue);
     if (!result.ok) {
       setCaseErrors(result.errors);
       appendActivity(
@@ -337,8 +352,9 @@ export default function TherapistWorkspace() {
     }
 
     setCaseContext(result.value);
-    setBodyRegion(result.value.bodyRegion);
+    setCaseEditValue(result.value);
     setCaseErrors([]);
+    setAgentErrors([]);
     setConfirmedProgram(null);
 
     if (draft) {
@@ -351,6 +367,7 @@ export default function TherapistWorkspace() {
       const validation = validateDraft(nextDraft.items, {
         minutesPerDay: result.value.minutesPerDay,
       });
+      const duration = estimateProgramDuration(nextDraft.items);
       setDraft(
         validation.ok
           ? {
@@ -358,9 +375,16 @@ export default function TherapistWorkspace() {
               estimatedMinutes: validation.value.estimatedMinutes,
               warnings: validation.value.warnings,
             }
-          : nextDraft,
+          : {
+              ...nextDraft,
+              estimatedMinutes: duration.ok
+                ? duration.value
+                : nextDraft.estimatedMinutes,
+            },
       );
       setDraftErrors(validation.ok ? [] : validation.errors);
+    } else {
+      setDraftErrors([]);
     }
 
     appendActivity(
@@ -368,6 +392,7 @@ export default function TherapistWorkspace() {
       "Applied case context.",
       `${result.value.diagnosis} · ${result.value.minutesPerDay} minutes per day.`,
     );
+    setCaseEditorOpen(false);
   };
 
   const updateDraftItems = (
@@ -378,6 +403,7 @@ export default function TherapistWorkspace() {
     const validation = validateDraft(items, {
       minutesPerDay: caseContext.minutesPerDay,
     });
+    const duration = estimateProgramDuration(items);
     setDraft({
       ...current,
       patientLabel: caseContext.patientLabel,
@@ -386,27 +412,44 @@ export default function TherapistWorkspace() {
       revision: current.revision + 1,
       estimatedMinutes: validation.ok
         ? validation.value.estimatedMinutes
-        : current.estimatedMinutes,
+        : duration.ok
+          ? duration.value
+          : current.estimatedMinutes,
       warnings: validation.ok ? validation.value.warnings : current.warnings,
       source: current.source,
     });
     setConfirmedProgram(null);
     setDraftErrors(validation.ok ? [] : validation.errors);
+    setAgentErrors([]);
     if (activity) {
       appendActivity("therapist", activity.action, activity.detail);
     }
   };
 
-  const addExercise = (exercise: Exercise) => {
-    if (selectedIds.has(exercise.id)) return;
-    const item: ProgramItem = {
+  const toggleStagedExercise = (exercise: Exercise) => {
+    if (prescribedIds.has(exercise.id)) return;
+    setStagedExerciseIds((current) => {
+      const next = new Set(current);
+      if (next.has(exercise.id)) next.delete(exercise.id);
+      else next.add(exercise.id);
+      return next;
+    });
+  };
+
+  const addStagedExercises = () => {
+    const additions = stagedExercises.filter(
+      (exercise) => !prescribedIds.has(exercise.id),
+    );
+    if (additions.length === 0) return;
+    const items: ProgramItem[] = additions.map((exercise) => ({
       exerciseId: exercise.id,
       ...exercise.defaultDosage,
-    };
-    updateDraftItems([...(draft?.items ?? []), item], {
-      action: "Added an exercise.",
-      detail: exercise.name,
+    }));
+    updateDraftItems([...(draft?.items ?? []), ...items], {
+      action: `Added ${additions.length} exercise${additions.length === 1 ? "" : "s"}.`,
+      detail: additions.map((exercise) => exercise.name).join(", "),
     });
+    setStagedExerciseIds(new Set());
   };
 
   const updateItem = (index: number, update: Partial<ProgramItem>) => {
@@ -456,9 +499,25 @@ export default function TherapistWorkspace() {
       );
       return;
     }
+    if (!storeConfirmedProgram(result.value)) {
+      const storageError: DomainError = {
+        code: "storage_failure",
+        message:
+          "The prescription could not be saved in this browser. Free storage or retry before sharing a patient link.",
+        field: "confirmation",
+        recoverable: true,
+      };
+      setDraftErrors([storageError]);
+      appendActivity(
+        "system",
+        "Confirmation could not be saved.",
+        storageError.message,
+      );
+      return;
+    }
     setConfirmedProgram(result.value);
-    storeConfirmedProgram(result.value);
     setDraftErrors([]);
+    setAgentErrors([]);
     appendActivity(
       "therapist",
       "Confirmed the prescription.",
@@ -466,16 +525,33 @@ export default function TherapistWorkspace() {
     );
   };
 
+  const openCaseEditor = () => {
+    setCaseEditValue({ ...caseContext });
+    setCaseErrors([]);
+    setCaseEditorOpen(true);
+  };
+
+  const closeCaseEditor = () => {
+    setCaseEditValue({ ...caseContext });
+    setCaseErrors([]);
+    setCaseEditorOpen(false);
+  };
+
   const resetWorkspace = () => {
     if (!window.confirm("Reset this synthetic demo workspace?")) return;
     clearTherapistWorkspace();
     setCaseContext(DEFAULT_CONTEXT);
+    setCaseEditValue(DEFAULT_CONTEXT);
     setDraft(null);
     setConfirmedProgram(null);
     setCaseErrors([]);
     setDraftErrors([]);
-    setBodyRegion("shoulder");
+    setAgentErrors([]);
+    setBodyRegion(undefined);
     setQuery("");
+    setDifficulty(undefined);
+    setStagedExerciseIds(new Set());
+    setCaseEditorOpen(false);
     setActivities([
       makeActivity("system", "Workspace reset.", "Synthetic case restored."),
     ]);
@@ -483,43 +559,19 @@ export default function TherapistWorkspace() {
 
   return (
     <main className="flex-1">
-      <section className="border-b border-border bg-white">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-start justify-between gap-6 px-6 py-7 lg:px-8">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
-              Therapist workspace
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.03em] text-ink-900">
-              Build together. Prescribe deliberately.
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Try: “Shoulder impingement, six weeks post-op, 15 minutes per day. Search the catalog, inspect suitable options, then create a draft for my review.”
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={resetWorkspace}
-            className="focus-ring inline-flex h-10 items-center rounded-xl border border-slate-300 px-3 text-xs font-bold text-slate-600 hover:bg-slate-50"
-          >
-            Reset synthetic demo
-          </button>
-        </div>
-      </section>
-
-      <div className="mx-auto w-full max-w-[1440px] border-x border-border bg-white">
-        <WebMcpSupportNotice
-          supported={webMcp.status !== "unsupported"}
-          status={webMcp.status}
-          error={webMcp.error ?? undefined}
-        />
-        <CaseContextForm
-          value={caseContext}
-          onChange={setCaseContext}
-          onSubmit={applyCaseContext}
-          errors={caseErrors}
+      <div className="mx-auto w-full max-w-[1440px] border-x border-border bg-white shadow-[0_1px_0_rgba(20,53,95,0.03)]">
+        <h1 className="sr-only">CoachPoint therapist prescription workspace</h1>
+        <CaseSummaryBar
+          caseContext={caseContext}
+          draft={draft}
+          webMcpStatus={webMcp.status}
+          webMcpToolCount={webMcp.toolNames.length}
+          webMcpError={webMcp.error ?? undefined}
+          onEditCase={openCaseEditor}
+          onReset={resetWorkspace}
         />
 
-        <div className="grid min-h-[780px] lg:grid-cols-[minmax(0,0.96fr)_minmax(560px,1.04fr)]">
+        <div className="grid min-h-[680px] lg:h-[calc(100vh-250px)] lg:min-h-[640px] lg:max-h-[760px] lg:grid-cols-[minmax(0,1.12fr)_minmax(460px,0.88fr)] lg:overflow-hidden">
           <ExerciseCatalog
             exercises={visibleExercises}
             query={query}
@@ -528,16 +580,22 @@ export default function TherapistWorkspace() {
             onBodyRegionChange={setBodyRegion}
             difficulty={difficulty}
             onDifficultyChange={setDifficulty}
-            onAdd={addExercise}
+            prescribedIds={prescribedIds}
+            stagedIds={stagedExerciseIds}
+            stagedExercises={stagedExercises}
+            onToggleStaged={toggleStagedExercise}
+            onClearStaged={() => setStagedExerciseIds(new Set())}
+            onAddStaged={addStagedExercises}
             onInspect={setInspectedExercise}
-            selectedIds={selectedIds}
           />
           <DraftEditor
+            key={draft?.id ?? "no-draft"}
             draft={draft}
             resolveExercise={getExerciseById}
             onAddStarterDraft={() => {
               setDraft(emptyDraft(caseContext, (draft?.revision ?? 0) + 1));
               setConfirmedProgram(null);
+              setAgentErrors([]);
               appendActivity(
                 "therapist",
                 "Started an empty draft.",
@@ -549,7 +607,8 @@ export default function TherapistWorkspace() {
             onMoveItem={moveItem}
             onConfirm={confirmDraft}
             validationErrors={draftErrors}
-            confirmDisabled={caseErrors.length > 0 || draftErrors.length > 0}
+            noticeErrors={agentErrors}
+            confirmDisabled={confirmationBlocked}
           />
         </div>
 
@@ -571,6 +630,38 @@ export default function TherapistWorkspace() {
             exercise={inspectedExercise}
             onClose={() => setInspectedExercise(null)}
           />
+        </>
+      )}
+
+      {caseEditorOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-ink-900/25"
+            onClick={closeCaseEditor}
+            aria-label="Close case editor"
+          />
+          <aside
+            className="fixed inset-y-0 right-0 z-50 w-full max-w-3xl overflow-y-auto border-l border-border bg-white shadow-[-18px_0_40px_rgba(20,53,95,0.14)]"
+            aria-label="Edit case context"
+            aria-modal="true"
+            role="dialog"
+          >
+            <button
+              type="button"
+              onClick={closeCaseEditor}
+              className="focus-ring fixed right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm hover:border-primary-700 hover:text-primary-700"
+              aria-label="Close case editor"
+            >
+              <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <CaseContextForm
+              value={caseEditValue}
+              onChange={setCaseEditValue}
+              onSubmit={applyCaseContext}
+              errors={caseErrors}
+            />
+          </aside>
         </>
       )}
     </main>

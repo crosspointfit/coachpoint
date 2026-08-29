@@ -53,7 +53,7 @@ export default function CaseContextForm({
     <form
       onSubmit={submit}
       autoComplete="off"
-      className="border-b border-border bg-white p-5 lg:p-6"
+      className="border-b border-border bg-white px-5 pb-8 pt-20 lg:px-7"
     >
       <div className="flex items-start justify-between gap-6">
         <div>
