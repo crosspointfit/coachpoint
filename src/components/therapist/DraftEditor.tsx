@@ -232,11 +232,11 @@ export default function DraftEditor({
                         </span>
                         <div className="relative h-[70px] w-[70px] shrink-0 overflow-hidden rounded-xl bg-[#F1F6F7]">
                           <Image
-                            src={exercise.imagePath}
+                            src={exercise.thumbnailPath}
                             alt=""
                             fill
                             sizes="70px"
-                            className="object-cover object-top"
+                            className="object-contain"
                           />
                           <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink-900 font-mono text-[9px] font-bold text-white">
                             {index + 1}

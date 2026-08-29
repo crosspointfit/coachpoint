@@ -150,7 +150,7 @@ export default function ExerciseCatalog({
             </p>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {exercises.map((exercise, index) => {
               const prescribed = prescribedIds.has(exercise.id);
               const staged = stagedIds.has(exercise.id);
@@ -177,14 +177,14 @@ export default function ExerciseCatalog({
                     }
                     className="focus-ring block w-full text-left disabled:cursor-default"
                   >
-                    <div className="relative h-36 overflow-hidden bg-[#F1F6F7]">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-[#F1F6F7]">
                       <Image
-                        src={exercise.imagePath}
+                        src={exercise.thumbnailPath}
                         alt=""
                         fill
                         loading={index < 2 ? "eager" : "lazy"}
-                        sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 360px"
-                        className="object-cover object-[center_28%] transition-transform duration-300 group-hover:scale-[1.02]"
+                        sizes="(max-width: 639px) 100vw, (max-width: 1279px) 50vw, 280px"
+                        className="object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                       />
                       <span
                         className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm ${
@@ -268,11 +268,11 @@ export default function ExerciseCatalog({
                       title={exercise.name}
                     >
                       <Image
-                        src={exercise.imagePath}
+                        src={exercise.thumbnailPath}
                         alt=""
                         fill
                         sizes="40px"
-                        className="object-cover object-top"
+                        className="object-contain"
                       />
                     </span>
                   ))}

@@ -7,12 +7,16 @@ import type {
 const DEMO_PRECAUTION =
   "Competition demo only. A licensed therapist must verify suitability and dosage before use.";
 
-type CatalogExercise = Omit<Exercise, "imagePath" | "reviewStatus">;
+type CatalogExercise = Omit<
+  Exercise,
+  "imagePath" | "thumbnailPath" | "reviewStatus"
+>;
 
 function defineExercise(exercise: CatalogExercise): Exercise {
   return {
     ...exercise,
     imagePath: `/exercises/${exercise.sourceFile}`,
+    thumbnailPath: `/exercise-thumbnails/${exercise.id}.webp`,
     precautions: [DEMO_PRECAUTION, ...exercise.precautions],
     reviewStatus: "demo-only",
   };

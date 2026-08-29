@@ -288,12 +288,12 @@ export default function PatientSessionWorkspace({
             <section className="grid overflow-hidden border border-border bg-white shadow-[var(--cp-shadow-card)] md:grid-cols-[250px_1fr]">
               <div className="bg-[#F4F5F2] p-5">
                 <Image
-                  src={focusExercise.imagePath}
+                  src={focusExercise.thumbnailPath}
                   alt=""
-                  width={600}
-                  height={900}
+                  width={1448}
+                  height={1086}
                   sizes="250px"
-                  className="mx-auto aspect-[2/3] max-h-[420px] w-auto object-contain"
+                  className="mx-auto aspect-[4/3] w-full object-contain"
                 />
               </div>
               <div className="p-6 lg:p-8">
@@ -400,4 +400,3 @@ export default function PatientSessionWorkspace({
     </main>
   );
 }
-

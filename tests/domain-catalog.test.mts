@@ -15,8 +15,13 @@ test("the curated catalog contains one demo-only entry for every copied image", 
   for (const exercise of EXERCISES) {
     assert.equal(exercise.reviewStatus, "demo-only");
     assert.match(exercise.imagePath, /^\/exercises\/P0-\d{4}\.png$/);
+    assert.equal(
+      exercise.thumbnailPath,
+      `/exercise-thumbnails/${exercise.id}.webp`,
+    );
     assert.match(exercise.precautions[0], /competition demo only/i);
     await access(new URL(`../public${exercise.imagePath}`, import.meta.url));
+    await access(new URL(`../public${exercise.thumbnailPath}`, import.meta.url));
   }
 });
 

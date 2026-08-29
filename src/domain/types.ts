@@ -24,6 +24,7 @@ export interface Exercise {
   id: string;
   sourceFile: string;
   imagePath: string;
+  thumbnailPath: string;
   name: string;
   nameZh: string;
   bodyRegion: BodyRegion;
