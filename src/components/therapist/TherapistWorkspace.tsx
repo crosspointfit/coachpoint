@@ -115,6 +115,7 @@ export default function TherapistWorkspace() {
   const [caseErrors, setCaseErrors] = useState<DomainError[]>([]);
   const [draftErrors, setDraftErrors] = useState<DomainError[]>([]);
   const [agentErrors, setAgentErrors] = useState<DomainError[]>([]);
+  const [workspaceAnnouncement, setWorkspaceAnnouncement] = useState("");
   const [query, setQuery] = useState("");
   const [bodyRegion, setBodyRegion] = useState<BodyRegion | undefined>();
   const [difficulty, setDifficulty] = useState<Difficulty | undefined>();
@@ -515,13 +516,69 @@ export default function TherapistWorkspace() {
       return;
     }
     setConfirmedProgram(result.value);
+    setStagedExerciseIds(new Set());
     setDraftErrors([]);
     setAgentErrors([]);
+    setWorkspaceAnnouncement("Prescription confirmed. Patient link ready.");
     appendActivity(
       "therapist",
       "Confirmed the prescription.",
       `Revision ${result.value.revision} · patient program ${result.value.code}.`,
     );
+  };
+
+  const focusDraftHeading = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("draft-heading")?.focus();
+    });
+  };
+
+  const reviseConfirmedProgram = () => {
+    if (!draft || !confirmedProgram) return;
+    const confirmedCode = confirmedProgram.code;
+    setDraft({
+      ...draft,
+      source: "therapist",
+      revision: draft.revision + 1,
+    });
+    setConfirmedProgram(null);
+    setDraftErrors([]);
+    setAgentErrors([]);
+    setWorkspaceAnnouncement("Confirmed plan reopened as an editable draft.");
+    appendActivity(
+      "therapist",
+      "Reopened the confirmed plan for revision.",
+      `The existing patient link ${confirmedCode} remains active until a replacement is confirmed.`,
+    );
+    focusDraftHeading();
+  };
+
+  const startNewPrescription = () => {
+    if (!confirmedProgram) return;
+    if (
+      !window.confirm(
+        "Start a new prescription draft? The confirmed patient link will remain active, but this workspace will switch to a new empty draft. Copy the link first if you still need it.",
+      )
+    ) {
+      return;
+    }
+    const confirmedCode = confirmedProgram.code;
+    setDraft(emptyDraft(caseContext, (draft?.revision ?? 0) + 1));
+    setConfirmedProgram(null);
+    setCaseErrors([]);
+    setDraftErrors([]);
+    setAgentErrors([]);
+    setStagedExerciseIds(new Set());
+    setQuery("");
+    setBodyRegion(undefined);
+    setDifficulty(undefined);
+    setWorkspaceAnnouncement("New empty prescription draft started.");
+    appendActivity(
+      "therapist",
+      "Started a new prescription draft.",
+      `The confirmed patient link ${confirmedCode} remains active.`,
+    );
+    focusDraftHeading();
   };
 
   const openCaseEditor = () => {
@@ -546,6 +603,7 @@ export default function TherapistWorkspace() {
     setCaseErrors([]);
     setDraftErrors([]);
     setAgentErrors([]);
+    setWorkspaceAnnouncement("");
     setBodyRegion(undefined);
     setQuery("");
     setDifficulty(undefined);
@@ -582,19 +640,21 @@ export default function TherapistWorkspace() {
             prescribedIds={prescribedIds}
             stagedIds={stagedExerciseIds}
             stagedExercises={stagedExercises}
+            locked={Boolean(confirmedProgram)}
             onToggleStaged={toggleStagedExercise}
             onClearStaged={() => setStagedExerciseIds(new Set())}
             onAddStaged={addStagedExercises}
             onInspect={setInspectedExercise}
           />
           <DraftEditor
-            key={draft?.id ?? "no-draft"}
+            key={`${draft?.id ?? "no-draft"}:${confirmedProgram ? "confirmed" : "editable"}`}
             draft={draft}
             resolveExercise={getExerciseById}
             onAddStarterDraft={() => {
               setDraft(emptyDraft(caseContext, (draft?.revision ?? 0) + 1));
               setConfirmedProgram(null);
               setAgentErrors([]);
+              setWorkspaceAnnouncement("New empty prescription draft started.");
               appendActivity(
                 "therapist",
                 "Started an empty draft.",
@@ -605,10 +665,13 @@ export default function TherapistWorkspace() {
             onRemoveItem={removeItem}
             onMoveItem={moveItem}
             onConfirm={confirmDraft}
+            onReviseConfirmed={reviseConfirmedProgram}
+            onStartNewPrescription={startNewPrescription}
             confirmedProgram={confirmedProgram}
             validationErrors={draftErrors}
             noticeErrors={agentErrors}
             confirmDisabled={confirmationBlocked}
+            announcement={workspaceAnnouncement}
           />
         </div>
 

@@ -29,10 +29,13 @@ interface DraftEditorProps {
   onRemoveItem: (index: number) => void;
   onMoveItem: (from: number, to: number) => void;
   onConfirm: () => void;
+  onReviseConfirmed?: () => void;
+  onStartNewPrescription?: () => void;
   confirmedProgram?: ConfirmedProgram | null;
   validationErrors?: DomainError[];
   noticeErrors?: DomainError[];
   confirmDisabled?: boolean;
+  announcement?: string;
 }
 
 const NUMBER_CLASS =
@@ -53,10 +56,13 @@ export default function DraftEditor({
   onRemoveItem,
   onMoveItem,
   onConfirm,
+  onReviseConfirmed,
+  onStartNewPrescription,
   confirmedProgram = null,
   validationErrors = [],
   noticeErrors = [],
   confirmDisabled = false,
+  announcement = "",
 }: DraftEditorProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -89,6 +95,9 @@ export default function DraftEditor({
       aria-labelledby="draft-heading"
       className="flex h-full min-w-0 flex-col border-t border-border bg-white lg:border-l lg:border-t-0"
     >
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
       <div className="flex items-end justify-between gap-4 border-b border-border bg-white px-5 py-3 lg:sticky lg:top-0 lg:z-10 lg:px-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -103,6 +112,7 @@ export default function DraftEditor({
           </div>
           <h2
             id="draft-heading"
+            tabIndex={-1}
             className="mt-1 text-xl font-black tracking-[-0.02em] text-ink-900"
           >
             Review and refine
@@ -217,7 +227,7 @@ export default function DraftEditor({
                   return (
                     <li
                       key={`${item.exerciseId}-${index}`}
-                      draggable={!editing}
+                      draggable={!editing && !confirmedProgram}
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
                         event.dataTransfer.setData("text/plain", String(index));
@@ -227,7 +237,10 @@ export default function DraftEditor({
                       className="rounded-2xl border border-border bg-white p-3 shadow-[var(--cp-shadow-card)]"
                     >
                       <div className="flex items-start gap-3">
-                        <span className="mt-1 flex h-7 w-5 shrink-0 items-center justify-center text-slate-300" title="Drag to reorder">
+                        <span
+                          className="mt-1 flex h-7 w-5 shrink-0 items-center justify-center text-slate-300"
+                          title={confirmedProgram ? "Revise the plan before reordering" : "Drag to reorder"}
+                        >
                           <Bars3Icon className="h-5 w-5" aria-hidden="true" />
                         </span>
                         <div className="relative h-[70px] w-[70px] shrink-0 overflow-hidden rounded-xl bg-[#F1F6F7]">
@@ -235,6 +248,7 @@ export default function DraftEditor({
                             src={exercise.thumbnailPath}
                             alt=""
                             fill
+                            loading="eager"
                             sizes="70px"
                             className="object-contain"
                           />
@@ -259,7 +273,7 @@ export default function DraftEditor({
                                   setEditingIndex(null);
                                   onMoveItem(index, index - 1);
                                 }}
-                                disabled={index === 0}
+                                disabled={Boolean(confirmedProgram) || index === 0}
                                 className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-25"
                                 aria-label={`Move ${exercise.name} up`}
                               >
@@ -271,7 +285,7 @@ export default function DraftEditor({
                                   setEditingIndex(null);
                                   onMoveItem(index, index + 1);
                                 }}
-                                disabled={index === draft.items.length - 1}
+                                disabled={Boolean(confirmedProgram) || index === draft.items.length - 1}
                                 className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-25"
                                 aria-label={`Move ${exercise.name} down`}
                               >
@@ -283,7 +297,8 @@ export default function DraftEditor({
                                   setEditingIndex(null);
                                   onRemoveItem(index);
                                 }}
-                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-[#FBEEEA] hover:text-danger"
+                                disabled={Boolean(confirmedProgram)}
+                                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-[#FBEEEA] hover:text-danger disabled:cursor-not-allowed disabled:opacity-25"
                                 aria-label={`Remove ${exercise.name}`}
                               >
                                 <TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -293,7 +308,8 @@ export default function DraftEditor({
                           <button
                             type="button"
                             onClick={() => setEditingIndex(editing ? null : index)}
-                            className="focus-ring mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-primary-700 hover:text-primary-800"
+                            disabled={Boolean(confirmedProgram)}
+                            className="focus-ring mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-primary-700 hover:text-primary-800 disabled:cursor-not-allowed disabled:text-slate-300"
                             aria-expanded={editing}
                           >
                             <PencilSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -391,7 +407,12 @@ export default function DraftEditor({
             }`}
           >
             {confirmedProgram ? (
-              <ConfirmedProgramPanel program={confirmedProgram} compact />
+              <ConfirmedProgramPanel
+                program={confirmedProgram}
+                compact
+                onRevise={onReviseConfirmed}
+                onStartNew={onStartNewPrescription}
+              />
             ) : (
               <>
                 <button

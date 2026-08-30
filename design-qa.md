@@ -38,7 +38,7 @@
 
 - Mobile screenshot: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-workspace-mobile.png` at `375 × 812`; document scroll width equals viewport width (`375`), with the region chip row intentionally horizontally scrollable.
 - Tablet screenshot: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-workspace-tablet.png` at `768 × 1024`; document scroll width equals viewport width (`768`).
-- Primary interactions tested in the browser: gallery select/deselect, three-item selection tray, batch add, remove/restored item, dosage editor open/close, case drawer open/close, therapist confirmation, CTA-to-inline-success replacement, copy/open patient actions, and generated patient-link state.
+- Primary interactions tested in the browser: gallery select/deselect, three-item selection tray, batch add, remove/restored item, dosage editor open/close, case drawer open/close, therapist confirmation, CTA-to-inline-success replacement, copy/open patient actions, post-confirmation revise/new-draft choices, and generated patient-link state.
 - Short-viewport regression checks: `1024 × 650`, `1280 × 720`, `1502 × 754`, `768 × 1024`, and `375 × 812`. The selection tray and its action remained fully visible at every size, document width matched viewport width, and no library/draft nested vertical scroller remained.
 - Long-content regression: an eight-item draft at `1280 × 720` kept the draft header and confirmation action visible throughout document scrolling; a one-result catalog filter kept the selection tray visible until the shared grid boundary.
 - Browser console after the final pass: zero errors and zero warnings. All visible optimized exercise images completed with non-zero natural widths. No unlabeled buttons or document-level horizontal overflow were detected.
@@ -49,6 +49,7 @@
 - User-feedback pass 2: a `1502 × 754` capture exposed a clipped bottom tray, competing document/library scroll regions, and confirmation feedback below the fold. The fixed-height grid and both column scrollers were removed, the tray became an inset document-sticky control, the draft became a document-sticky column, and confirmation now replaces the CTA in place with `Confirmed`, copy, and open actions. Evidence: `/Users/tywang/Documents/AI/coachpoint/design-references/reported-scroll-before.png` and `/Users/tywang/Documents/AI/coachpoint/design-references/reported-scroll-after.png`.
 - Capture normalization after pass 2: the document was returned to its top position and the interaction state was set to three staged selections so source and implementation showed comparable gallery-selection behavior.
 - User-feedback pass 3: the portrait source sheets were being cropped inside landscape card frames. Fifteen dedicated text-free `4:3` thumbnails were generated, six semantically mismatched source poses were corrected against the catalog definitions, the gallery changed to uncropped `object-contain`, and wide desktop layouts now use three columns. The patient session and prescription rows consume the same new thumbnail contract.
+- User-feedback pass 4: confirmation was a terminal UI state with no obvious way to continue. The confirmed action panel now exposes `Revise plan` to reopen the current items and `New draft` to clear the workspace for a fresh selection while retaining the already-issued patient link. Evidence: `/Users/tywang/Documents/AI/coachpoint/design-references/post-confirmation-actions.png` and `/Users/tywang/Documents/AI/coachpoint/design-references/new-prescription-draft.png`.
 
 ## Implementation checklist
 
@@ -58,6 +59,7 @@
 - [x] Compact dose summaries with progressive disclosure for editing
 - [x] Agent-created draft attribution and collapsible clinical notes
 - [x] Therapist-only confirmation with immediate inline success and patient-link actions
+- [x] Explicit post-confirmation revise and start-new workflows
 - [x] Responsive header, single document scroll, sticky gallery tray, and stacked mobile tray
 - [x] Desktop/mobile/tablet visual checks and clean runtime console
 - [x] Brand-token and anti-slop review

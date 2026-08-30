@@ -22,6 +22,7 @@ interface ExerciseCatalogProps {
   prescribedIds: Set<string>;
   stagedIds: Set<string>;
   stagedExercises: Exercise[];
+  locked?: boolean;
   onToggleStaged: (exercise: Exercise) => void;
   onClearStaged: () => void;
   onAddStaged: () => void;
@@ -51,6 +52,7 @@ export default function ExerciseCatalog({
   prescribedIds,
   stagedIds,
   stagedExercises,
+  locked = false,
   onToggleStaged,
   onClearStaged,
   onAddStaged,
@@ -168,11 +170,13 @@ export default function ExerciseCatalog({
                   <button
                     type="button"
                     onClick={() => onToggleStaged(exercise)}
-                    disabled={prescribed}
+                    disabled={prescribed || locked}
                     aria-pressed={staged}
                     aria-label={
                       prescribed
                         ? `${exercise.name} is already in the prescription`
+                        : locked
+                          ? `${exercise.name} is locked until the confirmed prescription is revised or a new draft is started`
                         : `${staged ? "Deselect" : "Select"} ${exercise.name}`
                     }
                     className="focus-ring block w-full text-left disabled:cursor-default"
@@ -182,7 +186,7 @@ export default function ExerciseCatalog({
                         src={exercise.thumbnailPath}
                         alt=""
                         fill
-                        loading={index < 2 ? "eager" : "lazy"}
+                        loading={index < 6 ? "eager" : "lazy"}
                         sizes="(max-width: 639px) 100vw, (max-width: 1279px) 50vw, 280px"
                         className="object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                       />
@@ -299,7 +303,7 @@ export default function ExerciseCatalog({
           <button
             type="button"
             onClick={onAddStaged}
-            disabled={stagedExercises.length === 0}
+            disabled={locked || stagedExercises.length === 0}
             className="focus-ring inline-flex h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-4 text-xs font-extrabold text-white hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
           >
             <PlusIcon className="h-4 w-4" aria-hidden="true" />

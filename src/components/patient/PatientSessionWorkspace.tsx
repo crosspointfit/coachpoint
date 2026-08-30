@@ -292,6 +292,7 @@ export default function PatientSessionWorkspace({
                   alt=""
                   width={1448}
                   height={1086}
+                  loading="eager"
                   sizes="250px"
                   className="mx-auto aspect-[4/3] w-full object-contain"
                 />
