@@ -64,4 +64,13 @@
 - [x] Desktop/mobile/tablet visual checks and clean runtime console
 - [x] Brand-token and anti-slop review
 
+## Phase 4.5 caseload extension evidence
+
+- Dashboard: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-caseload-dashboard.png`
+- Client program hub: `/Users/tywang/Documents/AI/coachpoint/design-references/client-program-hub.png`
+- Mobile dashboard: `/Users/tywang/Documents/AI/coachpoint/design-references/therapist-caseload-mobile.png`
+- Mobile client hub: `/Users/tywang/Documents/AI/coachpoint/design-references/client-program-hub-mobile.png`
+- The extension reuses the existing CoachPoint typography, navy/blue/coral tokens, synthetic-data labeling, status semantics, radii, borders, and low-elevation surfaces rather than introducing a second dashboard visual language.
+- Browser checks covered v1 workspace/registry migration, three-client rendering, client detail, immutable program history, named editor deep links, new-program creation, fresh reload recovery, fail-closed cross-client links, Client A/B isolation, four route-scoped editor tools, stale-agent revision rejection, durable agent writes, editor-tool cleanup on dashboard return, English-only copy, zero horizontal overflow at 375 px, zero broken images, and a clean console.
+
 final result: passed

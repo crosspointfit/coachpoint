@@ -1,7 +1,7 @@
 # CoachPoint WebMCP Challenge — Phase-based Implementation Plan
 
 > Status: Approved implementation direction
-> Last updated: 2026-08-28 (Asia/Taipei)
+> Last updated: 2026-08-30 (Asia/Taipei)
 > Related source: [`webmcp-challenge-spec.md`](./webmcp-challenge-spec.md)
 > Reusable source project: `/Users/tywang/Documents/AI/pt`
 
@@ -22,16 +22,27 @@ Updated after the first implementation checkpoint on 2026-08-28:
   drag ordering, keyboard-accessible reordering, duration/warnings, explicit
   confirmation, patient links, activity attribution, reset, and browser
   persistence.
-- **Phase 3 — complete.** `search_exercises`, `get_exercise_details`, and
-  `draft_program` register directly on the therapist route with awaited
-  registration and AbortController cleanup. Native Codex in-app Browser calls
-  successfully update the shared UI.
-- **Phase 4 — local functional gate passed.** Unit/contract tests, typecheck,
-  lint, production build, headless browser checks, manual workflow probes,
-  native in-app Browser discovery/invocation, and route cleanup all pass.
+- **Phase 3 — complete and route-scoped to the editor.**
+  `search_exercises`, `get_exercise_details`, `get_program_editor_state`, and
+  revision-guarded `draft_program` register directly on a valid program-editor
+  route with awaited registration and AbortController cleanup. Native Codex
+  in-app Browser calls successfully update and durably persist the shared UI.
+- **Phase 4 — original single-workspace functional gate passed.**
+  Unit/contract tests, typecheck, lint, production build, headless browser
+  checks, manual workflow probes, native in-app Browser
+  discovery/invocation, and route cleanup all pass for the original
+  `/therapist` workspace.
 - **Phase 4 external-release items remain:** confirm the public license for the
   reused exercise illustrations, create the public remote repository, deploy
   to HTTPS, and repeat browser verification on the deployed origin.
+- **Phase 4.5A–B — implemented locally; Phase 4.5C–D remain.** The browser-local
+  V2 synthetic caseload, deterministic V1 migration, three-client dashboard,
+  client program hub, immutable confirmed-version history, and client/program
+  scoped editor routes are implemented. Fifty-one tests, typecheck, lint,
+  production build, mobile probes, deep-link recovery, client-isolation checks,
+  stale-agent revision rejection, and editor-tool cleanup pass. Dashboard
+  `list_clients`, client-detail `get_client_summary`, and the formal three-run
+  reopened acceptance gate remain before Phase 4.5 is complete.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
   create a versioned patient session, support timer/manual sets, pause/resume,
   skip, stop, RPE, pain reporting, a pain safety gate at 5/10, per-transition
@@ -78,13 +89,17 @@ The patient workflow is the main WebMCP differentiator because the relevant live
 
 ## 2. Confirmed Implementation Order
 
-The therapist experience must be completed and accepted before patient-side camera work begins.
+The original therapist gate preceded the completed patient fallback and motion
+engine work. For all remaining work, the new Phase 4.5 hub gate must pass
+before patient WebMCP, the therapist-patient feedback loop, or release.
 
 ```text
 Data and safety boundaries
 → Therapist manual UI
 → Therapist WebMCP workflow
-→ Therapist acceptance gate
+→ Original therapist acceptance gate
+→ Synthetic caseload and program hub
+→ Reopened therapist acceptance gate
 → Patient session foundation
 → MediaPipe motion engine
 → Patient WebMCP workflow
@@ -92,7 +107,10 @@ Data and safety boundaries
 → Competition hardening and submission
 ```
 
-This ordering prevents MediaPipe and camera testing from blocking a complete therapist-side WebMCP product.
+This ordering keeps the therapist-side product and its authority boundaries
+stable before patient-agent orchestration and release. The already completed
+patient fallback and motion-engine foundations remain intact while Phase 4.5
+is implemented.
 
 ## 3. Architectural Principle: Reflex Layer and Cognitive Layer
 
@@ -359,7 +377,159 @@ Stabilize the therapist experience before any MediaPipe implementation begins.
 
 The therapist can describe a synthetic case in one message, the agent can create a visible and reviewable program draft, and the therapist can modify and explicitly confirm it to obtain a usable patient link.
 
-Patient-side implementation must not begin until this statement is true and repeatably verified.
+This original single-workspace statement remains the baseline. Once the
+caseload hub is introduced, the expanded Phase 4.5 gate below must pass before
+patient WebMCP, therapist-patient feedback, or the competition release may
+advance.
+
+---
+
+## Phase 4.5 — Synthetic Caseload & Program Hub
+
+### Goal
+
+Evolve the single synthetic therapist workspace into a small, durable
+browser-local caseload and program hub without adding authentication, real
+patient PII, or autonomous clinical authority.
+
+This phase is an information-architecture and persistence hardening step. It
+does not expand the catalog, diagnose conditions, create real clinician or
+patient accounts, or allow an agent to confirm a prescription.
+
+### Routes and manual workflow
+
+- `/therapist` becomes the synthetic caseload dashboard.
+  - Lists a bounded set of anonymous demo clients.
+  - Shows the active-program state and concise visible follow-up flags.
+  - Links to client detail and new-program entry points.
+- `/therapist/clients/[clientId]` becomes the client detail route.
+  - Shows the therapist-supplied case context.
+  - Shows the active confirmed program and immutable version history.
+  - Shows only session or adherence summaries that already exist and can be
+    verified in the visible UI.
+- `/therapist/clients/[clientId]/program` becomes the program editor.
+  - Reuses the validated catalog search, details, draft validation, dosage,
+    ordering, duration, warning, and manual confirmation operations.
+  - Supports a visible agent-created draft and subsequent therapist edits.
+  - Keeps the final confirmation control in the therapist UI only.
+
+All three routes must remain fully usable without WebMCP. The route parameter
+uses a stable synthetic `clientId`; it is not a patient link code and must not
+contain real identity data.
+
+### Versioned persistence
+
+Replace the single-workspace v1 shape with a versioned v2 therapist store that
+can represent:
+
+- Synthetic clients keyed by stable `clientId`
+- At most one current editable draft per client
+- Immutable confirmed programs keyed by patient program code
+- Each client's ordered confirmed-version history and `activeProgramCode`
+- Client-scoped, bounded activity attribution
+
+The URL owns the selected client and editor context; a global "current
+client" selection is not persisted.
+
+Confirmation creates a new immutable confirmed version and a new patient
+program code. Older confirmed versions and their patient links remain readable
+for historical integrity, while the client record points to the new active
+version. A later revision must not mutate the confirmed-program snapshot used
+by an existing patient session.
+
+Implement a one-time, idempotent v1-to-v2 migration. The former workspace is
+imported as one synthetic client, existing confirmed programs remain readable,
+and repeated reads do not duplicate clients, drafts, programs, or activities.
+Corrupt or orphaned nested records fail closed and remain resettable to the
+documented synthetic seed.
+
+Tool-backed writes must validate and persist before returning success. They
+must not rely only on a later React persistence effect, because an agent may
+navigate immediately after a successful call. A failed write must not advance
+an active-program pointer or show a successful confirmation state.
+
+### Minimal route-scoped WebMCP tools
+
+Register tools only from the leaf route that owns their visible context. Do
+not register a persistent therapist tool set from a shared layout.
+
+#### Dashboard: `/therapist`
+
+- `list_clients`
+  - Read-only and bounded.
+  - Returns only the anonymous labels, active-program status, concise visible
+    follow-up flags, and route identifiers represented on the dashboard.
+
+#### Client detail: `/therapist/clients/[clientId]`
+
+- `get_client_summary`
+  - Read-only.
+  - Returns the visible case context, active confirmed version, immutable
+    program history, and only currently implemented, visible session facts.
+  - Patient-entered notes, skip reasons, and similar fields remain untrusted
+    content.
+
+#### Program editor: `/therapist/clients/[clientId]/programs/[programId]`
+
+- `get_program_editor_state`
+  - Read-only.
+  - Returns the route-bound client context, time constraint, current draft
+    revision, and active confirmed-version summary.
+- `search_exercises`
+  - Retains the existing bounded, read-only catalog search contract.
+- `get_exercise_details`
+  - Retains the existing read-only safety and dosage detail contract.
+- `draft_program`
+  - Writes a visible, validated draft only.
+  - Is bound to the client loaded by the route rather than accepting an
+    arbitrary target client.
+  - Requires the expected draft revision so a stale agent call cannot silently
+    overwrite newer therapist edits.
+  - Returns `awaiting_therapist_review` and never confirms, activates, or
+    publishes a prescription.
+
+Do not add `confirm_program`, `activate_program`, `publish_program`,
+`update_draft_item`, destructive client tools, or navigation-only tools in this
+phase. `get_adherence_summary` remains deferred until Phase 8 has real,
+visible, aggregated session data.
+
+Each route owns one awaited registration controller. Navigating, refreshing,
+using browser back/forward, switching clients, or remounting must abort the old
+controller before the next route's exact tool set becomes active. Draft edits
+must not cause repeated unregister/register churn.
+
+### Verification
+
+- Contract tests assert the exact tool names, annotations, fully described
+  schemas, bounded results, and recoverable errors for each route.
+- Lifecycle tests cover dashboard → client A → editor A → client B →
+  landing, including rapid navigation, cancellation, remount, refresh, and
+  browser back/forward with no duplicate or ghost tools.
+- A cancelled or stale `draft_program` call cannot persist a partial or
+  cross-client update.
+- Persistence tests cover v2 round trips, client isolation, immutable version
+  history, old patient links, draft refresh recovery, nested corruption,
+  storage failure, and idempotent v1 migration.
+- The existing domain rejection for an agent confirmation attempt remains in
+  place, and no confirmation-capable WebMCP or declarative form tool exists on
+  any therapist route.
+- All visible summaries and tool results use the same stored domain operations
+  and agree after fresh reload and deep-link entry.
+
+### Reopened acceptance gate
+
+From a documented synthetic seed, a therapist can open the dashboard, choose a
+client, enter the program editor, and collaborate with an agent to create a
+visible draft. The therapist can then modify and explicitly confirm that draft
+through the UI, return to client detail or the dashboard, and see the new
+immutable active version while the prior patient link remains readable.
+
+This complete multi-route workflow must succeed three consecutive times from
+a fresh browser state. At every step, only the current route's minimal tools
+are registered, client A operations cannot affect client B, refresh and deep
+links preserve the correct data, and the agent cannot bypass therapist
+confirmation. Repeat the same gate on the deployed HTTPS origin before
+release.
 
 ---
 
@@ -591,7 +761,8 @@ The therapist-side agent can generate a follow-up summary from actual patient se
 The minimum complete competition product includes:
 
 - Curated exercise catalog with structured safety metadata
-- Therapist manual search and draft editor
+- Browser-local synthetic caseload dashboard and client detail
+- Therapist manual search and route-scoped program editor
 - Therapist WebMCP search, details, and draft tools
 - Explicit human confirmation
 - Anonymous patient link
@@ -610,7 +781,9 @@ Do not start these until the complete golden path is stable:
 
 - A second through fifth camera detector
 - A general detection DSL
-- Login or member accounts
+- Authentication, login, full clinician/patient member accounts, and
+  multi-user account management; Phase 4.5 remains a browser-local synthetic
+  caseload only
 - Real patient PII
 - Autonomous diagnosis
 - A comprehensive clinical protocol engine
@@ -623,6 +796,11 @@ Do not start these until the complete golden path is stable:
 
 ## 6. Next Implementation Action
 
-Start Phase 0 and Phase 1 only. Do not scaffold MediaPipe yet.
+Complete Phase 4.5C–D next without broadening it into an authentication or
+member-account project: add the bounded read-only dashboard/client-detail
+tools, then run the reopened acceptance gate three consecutive times.
 
-The first implementation milestone is a deployed therapist page where the same validated domain operations can be used manually and through the three therapist WebMCP tools, while the therapist alone retains the ability to confirm the prescription.
+The next milestone is a deployed multi-route synthetic therapist hub where
+each leaf route exposes only its minimal WebMCP tools and the complete
+dashboard → client → editor → human confirmation → client history workflow
+passes on the deployed origin.

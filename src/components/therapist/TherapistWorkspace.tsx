@@ -1,13 +1,17 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import {
   confirmProgram,
   createProgramDraft,
   estimateProgramDuration,
   getExerciseById,
+  getSyntheticClient,
   searchExercises,
+  type TherapistWorkspaceSnapshot as CaseloadWorkspaceSnapshot,
   validateCaseContext,
   validateDraft,
 } from "@/domain";
@@ -31,6 +35,13 @@ import {
   type SearchExercisesInput,
 } from "@/lib/webmcp";
 import {
+  createProgramForClient,
+  listProgramsForClient,
+  readProgramWorkspaceForClient,
+  writeClientProgramWorkspace,
+  writeProgramWorkspaceForClient,
+} from "@/lib/caseloadStorage";
+import {
   clearTherapistWorkspace,
   readTherapistWorkspace,
   storeConfirmedProgram,
@@ -42,6 +53,11 @@ import CaseContextForm from "./CaseContextForm";
 import DraftEditor from "./DraftEditor";
 import ExerciseCatalog from "./ExerciseCatalog";
 import ExerciseDetailsPanel from "./ExerciseDetailsPanel";
+
+interface TherapistWorkspaceProps {
+  clientId?: string;
+  programId?: string;
+}
 
 const DEFAULT_CONTEXT: CaseContext = {
   patientLabel: "Demo Patient — Shoulder",
@@ -104,10 +120,16 @@ function conciseExercise(exercise: Exercise) {
   };
 }
 
-export default function TherapistWorkspace() {
-  const [caseContext, setCaseContext] = useState<CaseContext>(DEFAULT_CONTEXT);
+export default function TherapistWorkspace({
+  clientId,
+  programId,
+}: TherapistWorkspaceProps = {}) {
+  const router = useRouter();
+  const clientFixture = clientId ? getSyntheticClient(clientId) : undefined;
+  const initialContext = clientFixture?.caseContext ?? DEFAULT_CONTEXT;
+  const [caseContext, setCaseContext] = useState<CaseContext>(initialContext);
   const [caseEditValue, setCaseEditValue] =
-    useState<CaseContext>(DEFAULT_CONTEXT);
+    useState<CaseContext>(initialContext);
   const [draft, setDraft] = useState<ProgramDraft | null>(null);
   const [confirmedProgram, setConfirmedProgram] =
     useState<ConfirmedProgram | null>(null);
@@ -127,6 +149,8 @@ export default function TherapistWorkspace() {
     null,
   );
   const [hydrated, setHydrated] = useState(false);
+  const [hydratedScope, setHydratedScope] = useState<string | null>(null);
+  const [programMissing, setProgramMissing] = useState(false);
 
   const appendActivity = useCallback(
     (actor: ActivityActor, action: string, detail: string) => {
@@ -140,14 +164,26 @@ export default function TherapistWorkspace() {
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
-      const stored = readTherapistWorkspace();
+      const stored = programId
+        ? clientId
+          ? readProgramWorkspaceForClient(clientId, programId)
+          : null
+        : readTherapistWorkspace();
       if (stored) {
+        setProgramMissing(false);
         setCaseContext(stored.caseContext);
         setCaseEditValue(stored.caseContext);
         setDraft(stored.draft);
         setConfirmedProgram(stored.confirmedProgram);
         setActivities(stored.activities);
+      } else if (programId) {
+        setProgramMissing(true);
       } else {
+        const fallbackContext = clientId
+          ? getSyntheticClient(clientId)?.caseContext ?? DEFAULT_CONTEXT
+          : DEFAULT_CONTEXT;
+        setCaseContext(fallbackContext);
+        setCaseEditValue(fallbackContext);
         setActivities([
           makeActivity(
             "system",
@@ -156,25 +192,61 @@ export default function TherapistWorkspace() {
           ),
         ]);
       }
+      setHydratedScope(programId ?? "legacy-workspace");
       setHydrated(true);
     }, 0);
 
     return () => window.clearTimeout(hydrationTimer);
-  }, []);
+  }, [clientId, programId]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    writeTherapistWorkspace({
+    const expectedScope = programId ?? "legacy-workspace";
+    if (!hydrated || hydratedScope !== expectedScope) return;
+    const snapshot = {
       version: 1,
       caseContext,
       draft,
       confirmedProgram,
       activities,
-    });
-  }, [activities, caseContext, confirmedProgram, draft, hydrated]);
+    } as const;
+    if (programId) {
+      if (!programMissing && clientId) {
+        writeProgramWorkspaceForClient(clientId, programId, snapshot);
+      }
+    } else {
+      writeTherapistWorkspace(snapshot);
+    }
+  }, [
+    activities,
+    caseContext,
+    clientId,
+    confirmedProgram,
+    draft,
+    hydrated,
+    hydratedScope,
+    programId,
+    programMissing,
+  ]);
+
+  const toolsEnabled =
+    hydrated &&
+    !programMissing &&
+    hydratedScope === (programId ?? "legacy-workspace");
+
+  const persistWorkspaceNow = useCallback(
+    (snapshot: CaseloadWorkspaceSnapshot): boolean => {
+      if (programId) {
+        return clientId
+          ? writeProgramWorkspaceForClient(clientId, programId, snapshot)
+          : false;
+      }
+      return writeTherapistWorkspace(snapshot);
+    },
+    [clientId, programId],
+  );
 
   const toolDescriptors = useMemo(() => {
-    if (!hydrated) return [];
+    if (!toolsEnabled) return [];
     return createTherapistToolDescriptors({
         searchExercises: async (input: SearchExercisesInput) => {
           if (typeof input?.query !== "string" || input.query.trim() === "") {
@@ -255,6 +327,60 @@ export default function TherapistWorkspace() {
             },
           };
         },
+        getProgramEditorState: async () => {
+          const storedWorkspace =
+            clientId && programId
+              ? readProgramWorkspaceForClient(clientId, programId)
+              : null;
+          if (!storedWorkspace) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "program_not_found",
+                  message:
+                    "The route-bound program workspace is unavailable. Return to the client record and reopen a valid draft.",
+                  field: "programId",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
+          const activeConfirmedVersion = clientId
+            ? listProgramsForClient(clientId)
+                .filter((program) => program.status !== "archived")
+                .flatMap((program) =>
+                  program.confirmedCodes.flatMap((code) => {
+                    const version = program.confirmedVersions[code];
+                    return version ? [version] : [];
+                  }),
+                )
+                .sort((a, b) =>
+                  b.confirmedAt.localeCompare(a.confirmedAt),
+                )[0]
+            : undefined;
+          return {
+            clientId,
+            programId,
+            patientLabel: storedWorkspace.caseContext.patientLabel,
+            diagnosis: storedWorkspace.caseContext.diagnosis,
+            minutesPerDay: storedWorkspace.caseContext.minutesPerDay,
+            draft: storedWorkspace.draft
+              ? {
+                  draftId: storedWorkspace.draft.id,
+                  revision: storedWorkspace.draft.revision,
+                  itemCount: storedWorkspace.draft.items.length,
+                  estimatedMinutes: storedWorkspace.draft.estimatedMinutes,
+                  source: storedWorkspace.draft.source,
+                }
+              : null,
+            status: storedWorkspace.confirmedProgram
+              ? "confirmed"
+              : "awaiting_therapist_review",
+            confirmedCode: storedWorkspace.confirmedProgram?.code,
+            activeConfirmedCode: activeConfirmedVersion?.code,
+          };
+        },
         draftProgram: async (input: DraftProgramInput) => {
           if (
             !input?.caseContext ||
@@ -273,14 +399,70 @@ export default function TherapistWorkspace() {
               ],
             };
           }
+          const storedWorkspace =
+            clientId && programId
+              ? readProgramWorkspaceForClient(clientId, programId)
+              : null;
+          const currentRevision = storedWorkspace?.draft?.revision ?? 0;
+          if (input.expectedDraftRevision !== currentRevision) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "draft_revision_conflict",
+                  message: `The editor is now at revision ${currentRevision}. Read the visible draft again before replacing it.`,
+                  field: "expectedDraftRevision",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
           const result = createProgramDraft({
             caseContext: input.caseContext,
             items: input.items,
             source: "agent",
+            revision: currentRevision + 1,
           });
           if (!result.ok) {
             setAgentErrors(result.errors);
             return result;
+          }
+          const activity = makeActivity(
+            "agent",
+            "Created a visible draft.",
+            `${result.value.items.length} exercises · ${result.value.estimatedMinutes.toFixed(1)} minutes · awaiting therapist review.`,
+          );
+          const nextActivities = [
+            activity,
+            ...(storedWorkspace?.activities ?? []),
+          ].slice(0, 60);
+          const nextWorkspace = {
+            version: 1,
+            caseContext: result.value.caseContext,
+            draft: result.value,
+            confirmedProgram: null,
+            activities: nextActivities,
+          } as const;
+          const persisted =
+            clientId && programId
+              ? writeClientProgramWorkspace(
+                  clientId,
+                  programId,
+                  nextWorkspace,
+                )
+              : persistWorkspaceNow(nextWorkspace);
+          if (!persisted) {
+            const errors: DomainError[] = [
+              {
+                code: "storage_failure",
+                message:
+                  "The agent draft was validated, but the client and program workspace could not be committed together in this browser.",
+                field: "program",
+                recoverable: true,
+              },
+            ];
+            setAgentErrors(errors);
+            return { ok: false as const, errors };
           }
           setCaseContext(result.value.caseContext);
           setCaseEditValue(result.value.caseContext);
@@ -290,11 +472,7 @@ export default function TherapistWorkspace() {
           setCaseErrors([]);
           setDraftErrors([]);
           setAgentErrors([]);
-          appendActivity(
-            "agent",
-            "Created a visible draft.",
-            `${result.value.items.length} exercises · ${result.value.estimatedMinutes.toFixed(1)} minutes · awaiting therapist review.`,
-          );
+          setActivities(nextActivities);
           return {
             ok: true as const,
             value: {
@@ -307,7 +485,13 @@ export default function TherapistWorkspace() {
           };
         },
       });
-  }, [appendActivity, hydrated]);
+  }, [
+    appendActivity,
+    clientId,
+    persistWorkspaceNow,
+    programId,
+    toolsEnabled,
+  ]);
 
   const webMcp = useWebMcpTools(toolDescriptors);
 
@@ -351,47 +535,72 @@ export default function TherapistWorkspace() {
       return;
     }
 
-    setCaseContext(result.value);
-    setCaseEditValue(result.value);
-    setCaseErrors([]);
-    setAgentErrors([]);
-    setConfirmedProgram(null);
-
+    let nextDraft = draft;
+    let nextDraftErrors: DomainError[] = [];
     if (draft) {
-      const nextDraft = {
+      const updatedDraft = {
         ...draft,
         patientLabel: result.value.patientLabel,
         caseContext: result.value,
         revision: draft.revision + 1,
       };
-      const validation = validateDraft(nextDraft.items, {
+      const validation = validateDraft(updatedDraft.items, {
         minutesPerDay: result.value.minutesPerDay,
       });
-      const duration = estimateProgramDuration(nextDraft.items);
-      setDraft(
-        validation.ok
-          ? {
-              ...nextDraft,
-              estimatedMinutes: validation.value.estimatedMinutes,
-              warnings: validation.value.warnings,
-            }
-          : {
-              ...nextDraft,
-              estimatedMinutes: duration.ok
-                ? duration.value
-                : nextDraft.estimatedMinutes,
-            },
-      );
-      setDraftErrors(validation.ok ? [] : validation.errors);
-    } else {
-      setDraftErrors([]);
+      const duration = estimateProgramDuration(updatedDraft.items);
+      nextDraft = validation.ok
+        ? {
+            ...updatedDraft,
+            estimatedMinutes: validation.value.estimatedMinutes,
+            warnings: validation.value.warnings,
+          }
+        : {
+            ...updatedDraft,
+            estimatedMinutes: duration.ok
+              ? duration.value
+              : updatedDraft.estimatedMinutes,
+          };
+      nextDraftErrors = validation.ok ? [] : validation.errors;
     }
 
-    appendActivity(
+    const activity = makeActivity(
       "therapist",
       "Applied case context.",
       `${result.value.diagnosis} · ${result.value.minutesPerDay} minutes per day.`,
     );
+    const nextActivities = [activity, ...activities].slice(0, 60);
+    const nextWorkspace = {
+      version: 1,
+      caseContext: result.value,
+      draft: nextDraft,
+      confirmedProgram: null,
+      activities: nextActivities,
+    } as const;
+    const persisted =
+      clientId && programId
+        ? writeClientProgramWorkspace(clientId, programId, nextWorkspace)
+        : persistWorkspaceNow(nextWorkspace);
+    if (!persisted) {
+      setCaseErrors([
+        {
+          code: "storage_failure",
+          message:
+            "The client context and program could not be committed together. Retry before continuing.",
+          field: "caseContext",
+          recoverable: true,
+        },
+      ]);
+      return;
+    }
+
+    setCaseContext(result.value);
+    setCaseEditValue(result.value);
+    setCaseErrors([]);
+    setAgentErrors([]);
+    setConfirmedProgram(null);
+    setDraft(nextDraft);
+    setDraftErrors(nextDraftErrors);
+    setActivities(nextActivities);
     setCaseEditorOpen(false);
   };
 
@@ -404,7 +613,7 @@ export default function TherapistWorkspace() {
       minutesPerDay: caseContext.minutesPerDay,
     });
     const duration = estimateProgramDuration(items);
-    setDraft({
+    const nextDraft: ProgramDraft = {
       ...current,
       patientLabel: caseContext.patientLabel,
       caseContext: { ...caseContext },
@@ -417,12 +626,39 @@ export default function TherapistWorkspace() {
           : current.estimatedMinutes,
       warnings: validation.ok ? validation.value.warnings : current.warnings,
       source: current.source,
-    });
+    };
+    const nextActivities = activity
+      ? [
+          makeActivity("therapist", activity.action, activity.detail),
+          ...activities,
+        ].slice(0, 60)
+      : activities;
+    if (
+      !persistWorkspaceNow({
+        version: 1,
+        caseContext,
+        draft: nextDraft,
+        confirmedProgram: null,
+        activities: nextActivities,
+      })
+    ) {
+      setDraftErrors([
+        {
+          code: "storage_failure",
+          message:
+            "This draft change could not be saved in the browser. Retry before continuing.",
+          field: "program",
+          recoverable: true,
+        },
+      ]);
+      return;
+    }
+    setDraft(nextDraft);
     setConfirmedProgram(null);
     setDraftErrors(validation.ok ? [] : validation.errors);
     setAgentErrors([]);
     if (activity) {
-      appendActivity("therapist", activity.action, activity.detail);
+      setActivities(nextActivities);
     }
   };
 
@@ -499,7 +735,21 @@ export default function TherapistWorkspace() {
       );
       return;
     }
-    if (!storeConfirmedProgram(result.value)) {
+    const activity = makeActivity(
+      "therapist",
+      "Confirmed the prescription.",
+      `Revision ${result.value.revision} · patient program ${result.value.code}.`,
+    );
+    const nextActivities = [activity, ...activities].slice(0, 60);
+    const confirmationSnapshot = {
+      version: 1,
+      caseContext,
+      draft,
+      confirmedProgram: result.value,
+      activities: nextActivities,
+    } as const;
+    const routeBound = Boolean(clientId && programId);
+    if (!routeBound && !storeConfirmedProgram(result.value)) {
       const storageError: DomainError = {
         code: "storage_failure",
         message:
@@ -515,16 +765,28 @@ export default function TherapistWorkspace() {
       );
       return;
     }
+    if (!persistWorkspaceNow(confirmationSnapshot)) {
+      const storageError: DomainError = {
+        code: "storage_failure",
+        message:
+          "The confirmed version could not be committed to the therapist caseload. Retry before leaving this page.",
+        field: "program",
+        recoverable: true,
+      };
+      setDraftErrors([storageError]);
+      appendActivity(
+        "system",
+        "Caseload confirmation could not be committed.",
+        storageError.message,
+      );
+      return;
+    }
     setConfirmedProgram(result.value);
     setStagedExerciseIds(new Set());
     setDraftErrors([]);
     setAgentErrors([]);
+    setActivities(nextActivities);
     setWorkspaceAnnouncement("Prescription confirmed. Patient link ready.");
-    appendActivity(
-      "therapist",
-      "Confirmed the prescription.",
-      `Revision ${result.value.revision} · patient program ${result.value.code}.`,
-    );
   };
 
   const focusDraftHeading = () => {
@@ -535,21 +797,66 @@ export default function TherapistWorkspace() {
 
   const reviseConfirmedProgram = () => {
     if (!draft || !confirmedProgram) return;
+    if (
+      clientId &&
+      programId &&
+      listProgramsForClient(clientId).some(
+        (program) =>
+          program.programId !== programId && program.status === "draft",
+      )
+    ) {
+      setDraftErrors([
+        {
+          code: "existing_draft",
+          message:
+            "This client already has another draft in progress. Finish or archive that draft before revising this confirmed plan.",
+          field: "program",
+          recoverable: true,
+        },
+      ]);
+      setWorkspaceAnnouncement(
+        "Revision blocked because another draft is already in progress.",
+      );
+      return;
+    }
     const confirmedCode = confirmedProgram.code;
-    setDraft({
+    const nextDraft = {
       ...draft,
       source: "therapist",
       revision: draft.revision + 1,
-    });
-    setConfirmedProgram(null);
-    setDraftErrors([]);
-    setAgentErrors([]);
-    setWorkspaceAnnouncement("Confirmed plan reopened as an editable draft.");
-    appendActivity(
+    } as ProgramDraft;
+    const activity = makeActivity(
       "therapist",
       "Reopened the confirmed plan for revision.",
       `The existing patient link ${confirmedCode} remains active until a replacement is confirmed.`,
     );
+    const nextActivities = [activity, ...activities].slice(0, 60);
+    if (
+      !persistWorkspaceNow({
+        version: 1,
+        caseContext,
+        draft: nextDraft,
+        confirmedProgram: null,
+        activities: nextActivities,
+      })
+    ) {
+      setDraftErrors([
+        {
+          code: "storage_failure",
+          message:
+            "The confirmed plan could not be reopened durably. Finish any other draft for this client, then retry.",
+          field: "program",
+          recoverable: true,
+        },
+      ]);
+      return;
+    }
+    setDraft(nextDraft);
+    setConfirmedProgram(null);
+    setDraftErrors([]);
+    setAgentErrors([]);
+    setActivities(nextActivities);
+    setWorkspaceAnnouncement("Confirmed plan reopened as an editable draft.");
     focusDraftHeading();
   };
 
@@ -563,6 +870,30 @@ export default function TherapistWorkspace() {
       return;
     }
     const confirmedCode = confirmedProgram.code;
+    if (clientId) {
+      const created = createProgramForClient(clientId);
+      if (!created) {
+        setDraftErrors([
+          {
+            code: "storage_failure",
+            message:
+              "A new prescription record could not be created in this browser. Retry after checking browser storage.",
+            field: "program",
+            recoverable: true,
+          },
+        ]);
+        return;
+      }
+      appendActivity(
+        "therapist",
+        "Started a new prescription record.",
+        `The confirmed patient link ${confirmedCode} remains active.`,
+      );
+      router.push(
+        `/therapist/clients/${clientId}/programs/${created.programId}`,
+      );
+      return;
+    }
     setDraft(emptyDraft(caseContext, (draft?.revision ?? 0) + 1));
     setConfirmedProgram(null);
     setCaseErrors([]);
@@ -595,10 +926,39 @@ export default function TherapistWorkspace() {
 
   const resetWorkspace = () => {
     if (!window.confirm("Reset this synthetic demo workspace?")) return;
-    clearTherapistWorkspace();
-    setCaseContext(DEFAULT_CONTEXT);
-    setCaseEditValue(DEFAULT_CONTEXT);
-    setDraft(null);
+    const nextDraft = programId
+      ? emptyDraft(initialContext, (draft?.revision ?? 0) + 1)
+      : null;
+    const nextActivities = [
+      makeActivity("system", "Workspace reset.", "Synthetic case restored."),
+    ];
+    if (clientId && programId) {
+      const resetSnapshot = {
+        version: 1,
+        caseContext: initialContext,
+        draft: nextDraft,
+        confirmedProgram: null,
+        activities: nextActivities,
+      } as const;
+      if (!writeClientProgramWorkspace(clientId, programId, resetSnapshot)) {
+        setDraftErrors([
+          {
+            code: "storage_failure",
+            message:
+              "The reset could not be committed. Finish any other draft for this client or retry after checking browser storage.",
+            field: "program",
+            recoverable: true,
+          },
+        ]);
+        setWorkspaceAnnouncement("Workspace reset was not saved.");
+        return;
+      }
+    } else {
+      clearTherapistWorkspace();
+    }
+    setCaseContext(initialContext);
+    setCaseEditValue(initialContext);
+    setDraft(nextDraft);
     setConfirmedProgram(null);
     setCaseErrors([]);
     setDraftErrors([]);
@@ -609,15 +969,56 @@ export default function TherapistWorkspace() {
     setDifficulty(undefined);
     setStagedExerciseIds(new Set());
     setCaseEditorOpen(false);
-    setActivities([
-      makeActivity("system", "Workspace reset.", "Synthetic case restored."),
-    ]);
+    setProgramMissing(false);
+    setActivities(nextActivities);
   };
+
+  if (hydrated && programMissing) {
+    return (
+      <main className="flex flex-1 items-center justify-center px-6 py-20">
+        <div className="max-w-md rounded-2xl border border-border bg-white p-8 text-center shadow-[var(--cp-shadow-card)]">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-primary-700">
+            Prescription unavailable
+          </p>
+          <h1 className="mt-3 text-2xl font-black text-ink-900">
+            This synthetic program could not be found.
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            Return to the client record and open an existing program or create a new draft.
+          </p>
+          <Link
+            href={clientId ? `/therapist/clients/${clientId}` : "/therapist"}
+            className="focus-ring mt-6 inline-flex h-10 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-800"
+          >
+            <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
+            Back to client
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1">
       <div className="mx-auto w-full max-w-[1440px] border-x border-border bg-white shadow-[0_1px_0_rgba(20,53,95,0.03)]">
         <h1 className="sr-only">CoachPoint therapist prescription workspace</h1>
+        {clientId && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-border bg-[#FCFCF9] px-5 py-2.5 text-xs lg:px-7">
+            <Link
+              href={`/therapist/clients/${clientId}`}
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md font-bold text-primary-700 hover:text-primary-800"
+            >
+              <ArrowLeftIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              Client programs
+            </Link>
+            <span className="text-slate-300" aria-hidden="true">/</span>
+            <span className="font-semibold text-slate-500">
+              {clientFixture?.displayName ?? "Synthetic client"}
+            </span>
+            <span className="text-slate-300" aria-hidden="true">/</span>
+            <span className="font-semibold text-ink-900">Prescription editor</span>
+          </div>
+        )}
         <CaseSummaryBar
           caseContext={caseContext}
           draft={draft}

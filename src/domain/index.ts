@@ -5,6 +5,22 @@ export {
   type ExerciseSearchFilters,
 } from "./catalog.ts";
 export {
+  CASELOAD_SEED_TIMESTAMP,
+  DEFAULT_SYNTHETIC_CLIENT_ID,
+  SYNTHETIC_CLIENTS,
+  cloneCaseloadStore,
+  cloneProgramRecord,
+  cloneWorkspaceSnapshot,
+  createSeedCaseload,
+  getSyntheticClient,
+  programStatusFromWorkspace,
+  type ProgramStatus,
+  type SyntheticClient,
+  type TherapistCaseloadStore,
+  type TherapistProgramRecord,
+  type TherapistWorkspaceSnapshot,
+} from "./caseload.ts";
+export {
   EXERCISE_DOSAGE_LIMITS,
   confirmProgram,
   createProgramDraft,

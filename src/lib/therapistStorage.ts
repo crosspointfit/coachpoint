@@ -9,6 +9,7 @@ import type {
 
 const STORAGE_KEY = "coachpoint:therapist-workspace:v1";
 const PROGRAMS_KEY = "coachpoint:confirmed-programs:v1";
+const CASELOAD_KEY = "coachpoint:therapist-caseload:v2";
 
 export interface TherapistWorkspaceSnapshot {
   version: 1;
@@ -188,10 +189,44 @@ function readProgramRegistry(): ConfirmedProgramRegistry {
   }
 }
 
+function readCaseloadConfirmedProgram(
+  code: string,
+): ConfirmedProgram | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CASELOAD_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== 2 ||
+      !isRecord(parsed.programsById)
+    ) {
+      return null;
+    }
+    for (const program of Object.values(parsed.programsById)) {
+      if (!isRecord(program) || !isRecord(program.confirmedVersions)) {
+        continue;
+      }
+      const version = program.confirmedVersions[code];
+      if (isConfirmedProgram(version) && version.code === code) {
+        return version;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function storeConfirmedProgram(program: ConfirmedProgram): boolean {
   if (typeof window === "undefined") return false;
   try {
     const registry = readProgramRegistry();
+    const existing = registry.programs[program.code];
+    if (existing) {
+      return JSON.stringify(existing) === JSON.stringify(program);
+    }
     registry.programs[program.code] = program;
     window.localStorage.setItem(PROGRAMS_KEY, JSON.stringify(registry));
     return true;
@@ -203,6 +238,8 @@ export function storeConfirmedProgram(program: ConfirmedProgram): boolean {
 export function readConfirmedProgram(
   code: string,
 ): ConfirmedProgram | null {
+  const caseloadProgram = readCaseloadConfirmedProgram(code);
+  if (caseloadProgram) return caseloadProgram;
   const registry = readProgramRegistry();
   return registry.programs[code] ?? null;
 }

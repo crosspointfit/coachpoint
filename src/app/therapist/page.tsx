@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import TherapistWorkspace from "@/components/therapist/TherapistWorkspace";
+import TherapistDashboard from "@/components/therapist/TherapistDashboard";
 
 export const metadata: Metadata = {
-  title: "Therapist workspace",
+  title: "Therapist caseload",
   description:
-    "Search a curated exercise catalog with an agent, review the visible draft, and keep final prescription confirmation human.",
+    "Review synthetic clients, agent drafts, and therapist-confirmed care plans in CoachPoint.",
 };
 
 export default function TherapistPage() {
-  return <TherapistWorkspace />;
+  return <TherapistDashboard />;
 }

@@ -10,6 +10,7 @@ import {
   createTherapistToolDescriptors,
   draftProgramSchema,
   getExerciseDetailsSchema,
+  getProgramEditorStateSchema,
   searchExercisesSchema,
 } from "../src/lib/webmcp/therapist-tools.ts";
 import type {
@@ -43,6 +44,7 @@ class FakeModelContext implements WebMcpModelContext {
 const handlers = {
   searchExercises: async (input: unknown) => ({ matches: [input] }),
   getExerciseDetails: async () => ({ id: "shoulder-wall-slide" }),
+  getProgramEditorState: async () => ({ revision: 1, itemCount: 0 }),
   draftProgram: async () => ({ id: "draft-1", source: "agent" }),
 };
 
@@ -69,7 +71,7 @@ function assertDescribedObjectSchema(schema: unknown): void {
   }
 }
 
-test("registers the three therapist tools with one ownership signal", async () => {
+test("registers the four editor tools with one ownership signal", async () => {
   const fake = new FakeModelContext();
   const tools = createTherapistToolDescriptors(handlers);
   const registration = startWebMcpRegistration(fake, tools);
@@ -77,31 +79,40 @@ test("registers the three therapist tools with one ownership signal", async () =
   assert.deepEqual(await registration.ready, [
     "search_exercises",
     "get_exercise_details",
+    "get_program_editor_state",
     "draft_program",
   ]);
-  assert.equal(fake.calls.length, 3);
+  assert.equal(fake.calls.length, 4);
   assert.ok(fake.calls.every(({ options }) => options?.signal === registration.signal));
   assert.deepEqual([...fake.activeNames], [
     "search_exercises",
     "get_exercise_details",
+    "get_program_editor_state",
     "draft_program",
   ]);
 
   assert.equal(tools[0]?.annotations.readOnlyHint, true);
   assert.equal(tools[1]?.annotations.readOnlyHint, true);
-  assert.equal(tools[2]?.annotations.readOnlyHint, false);
-  assert.equal(tools[2]?.annotations.untrustedContentHint, true);
+  assert.equal(tools[2]?.annotations.readOnlyHint, true);
+  assert.equal(tools[3]?.annotations.readOnlyHint, false);
+  assert.equal(tools[3]?.annotations.untrustedContentHint, true);
 });
 
 test("therapist schemas describe every field and reject extra properties", () => {
   assertDescribedObjectSchema(searchExercisesSchema);
   assertDescribedObjectSchema(getExerciseDetailsSchema);
+  assertDescribedObjectSchema(getProgramEditorStateSchema);
   assertDescribedObjectSchema(draftProgramSchema);
 
   assert.deepEqual(searchExercisesSchema.required, ["query"]);
   assert.ok(searchExercisesSchema.properties.bodyRegion.enum.includes("hand"));
   assert.deepEqual(getExerciseDetailsSchema.required, ["exerciseId"]);
-  assert.deepEqual(draftProgramSchema.required, ["caseContext", "items"]);
+  assert.deepEqual(getProgramEditorStateSchema.required, []);
+  assert.deepEqual(draftProgramSchema.required, [
+    "expectedDraftRevision",
+    "caseContext",
+    "items",
+  ]);
 });
 
 test("aborting registration removes route tools and a remount can register cleanly", async () => {
@@ -120,6 +131,7 @@ test("aborting registration removes route tools and a remount can register clean
   assert.deepEqual([...fake.activeNames], [
     "search_exercises",
     "get_exercise_details",
+    "get_program_editor_state",
     "draft_program",
   ]);
 
@@ -180,7 +192,7 @@ test("execute returns recoverable domain and thrown validation errors", async ()
     },
   });
 
-  assert.deepEqual(await thrownFailureTools[2]?.execute({}), {
+  assert.deepEqual(await thrownFailureTools[3]?.execute({}), {
     ok: false,
     errors: [
       {

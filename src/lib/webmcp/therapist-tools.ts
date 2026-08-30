@@ -18,7 +18,10 @@ export interface GetExerciseDetailsInput {
   exerciseId: string;
 }
 
+export type GetProgramEditorStateInput = Record<string, never>;
+
 export interface DraftProgramInput {
+  expectedDraftRevision: number;
   caseContext: CaseContext;
   items: ProgramItem[];
 }
@@ -26,6 +29,7 @@ export interface DraftProgramInput {
 export interface TherapistToolHandlers {
   searchExercises: ToolHandler<SearchExercisesInput>;
   getExerciseDetails: ToolHandler<GetExerciseDetailsInput>;
+  getProgramEditorState: ToolHandler<GetProgramEditorStateInput>;
   draftProgram: ToolHandler<DraftProgramInput>;
 }
 
@@ -97,10 +101,24 @@ export const getExerciseDetailsSchema = {
   additionalProperties: false,
 } as const satisfies JsonSchemaForInference;
 
+export const getProgramEditorStateSchema = {
+  type: "object",
+  description: "Read the visible route-bound prescription editor state.",
+  properties: {},
+  required: [],
+  additionalProperties: false,
+} as const satisfies JsonSchemaForInference;
+
 export const draftProgramSchema = {
   type: "object",
   description: "A synthetic case and exercise items for a visible therapist-review draft.",
   properties: {
+    expectedDraftRevision: {
+      type: "integer",
+      minimum: 0,
+      description:
+        "Revision currently shown in the editor, or 0 when no draft exists. The write is rejected if the therapist has edited a newer revision.",
+    },
     caseContext: {
       type: "object",
       description: "Synthetic clinical context supplied by the therapist.",
@@ -238,7 +256,7 @@ export const draftProgramSchema = {
       },
     },
   },
-  required: ["caseContext", "items"],
+  required: ["expectedDraftRevision", "caseContext", "items"],
   additionalProperties: false,
 } as const satisfies JsonSchemaForInference;
 
@@ -263,6 +281,15 @@ export function createTherapistToolDescriptors(
       inputSchema: getExerciseDetailsSchema,
       annotations: { readOnlyHint: true },
       execute: createToolExecutor(handlers.getExerciseDetails),
+    },
+    {
+      name: "get_program_editor_state",
+      title: "Get prescription editor state",
+      description:
+        "Read the route-bound synthetic client, current draft revision, item count, route confirmation state, and the client's active confirmed code before attempting a draft write.",
+      inputSchema: getProgramEditorStateSchema,
+      annotations: { readOnlyHint: true },
+      execute: createToolExecutor(handlers.getProgramEditorState),
     },
     {
       name: "draft_program",

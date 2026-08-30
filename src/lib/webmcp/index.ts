@@ -11,9 +11,11 @@ export {
   createTherapistToolDescriptors,
   draftProgramSchema,
   getExerciseDetailsSchema,
+  getProgramEditorStateSchema,
   searchExercisesSchema,
   type DraftProgramInput,
   type GetExerciseDetailsInput,
+  type GetProgramEditorStateInput,
   type SearchExercisesInput,
   type TherapistToolHandlers,
 } from "./therapist-tools.ts";
