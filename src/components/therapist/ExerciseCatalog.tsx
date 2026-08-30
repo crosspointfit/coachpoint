@@ -211,7 +211,7 @@ export default function ExerciseCatalog({
                         {exercise.name}
                       </p>
                       <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
-                        {exercise.nameZh} · {exercise.position}
+                        {exercise.position}
                       </p>
                       <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                         <span className="rounded-full bg-primary-100 px-2 py-1 capitalize text-primary-700">

@@ -304,7 +304,7 @@ export default function PatientSessionWorkspace({
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.03em] text-ink-900">
                   {focusExercise.name}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">{focusExercise.nameZh}</p>
+                <p className="mt-1 text-sm text-slate-500">{focusExercise.position}</p>
                 <p className="mt-5 text-lg font-bold text-ink-900">Target: {targetLabel(focusSet)}</p>
 
                 {activeSet ? (

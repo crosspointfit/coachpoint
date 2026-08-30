@@ -21,7 +21,7 @@ export default function ExerciseDetailsPanel({
             Exercise details
           </p>
           <h2 className="mt-2 text-2xl font-black text-ink-900">{exercise.name}</h2>
-          <p className="mt-1 text-sm text-slate-500">{exercise.nameZh}</p>
+          <p className="mt-1 text-sm text-slate-500">{exercise.position}</p>
         </div>
         <button
           type="button"
@@ -85,4 +85,3 @@ export default function ExerciseDetailsPanel({
     </aside>
   );
 }
-
