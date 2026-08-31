@@ -45,6 +45,14 @@ Updated after the first implementation checkpoint on 2026-08-28:
   The three-run gate used simulated therapist UI confirmation, not an agent
   confirmation tool or real clinical care. Deployed HTTPS and clinician
   acceptance remain external gates. Evidence: [Phase 4.5 acceptance](./docs/phase-4.5-acceptance.md).
+- **Homepage refinement — complete locally (2026-08-31).** The English
+  homepage follows the PT `hep` branch's illustration-first marketing style,
+  with a working movement-preview gallery, workflow explanation and honest
+  browser-local demo FAQ. Competition hyperlinks are removed entirely from
+  public chrome, including the footer. Ninety-two tests and responsive/browser
+  QA pass. Source tokens and visual evidence are recorded in
+  `docs/design/pt-hep/` and `design-qa.md`. Camera work remains paused pending
+  user review of the updated homepage.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
   create a versioned patient session, support timer/manual sets, pause/resume,
   skip, stop, RPE, pain reporting, a pain safety gate at 5/10, per-transition

@@ -1,0 +1,69 @@
+{
+  "viewports": [
+    {
+      "cjk": false,
+      "competitionLinks": 0,
+      "height": 740,
+      "heroImages": true,
+      "layout": 320,
+      "scroll": 320,
+      "width": 320
+    },
+    {
+      "cjk": false,
+      "competitionLinks": 0,
+      "height": 812,
+      "heroImages": true,
+      "layout": 375,
+      "scroll": 375,
+      "width": 375
+    },
+    {
+      "cjk": false,
+      "competitionLinks": 0,
+      "height": 1024,
+      "heroImages": true,
+      "layout": 768,
+      "scroll": 768,
+      "width": 768
+    },
+    {
+      "cjk": false,
+      "competitionLinks": 0,
+      "height": 720,
+      "heroImages": true,
+      "layout": 1280,
+      "scroll": 1280,
+      "width": 1280
+    }
+  ],
+  "console": [],
+  "competitionLinks": 0,
+  "imagesLoadedAfterTraversal": 18,
+  "galleryCards": 15,
+  "escape": {
+    "focus": "Preview Half-Kneeling Hip Flexor Stretch",
+    "open": false,
+    "overflow": ""
+  },
+  "mobileDialog": {
+    "start": {
+      "closeBottom": 105.6015625,
+      "closeTop": 61.6015625,
+      "open": true,
+      "width": 337
+    },
+    "scrolled": {
+      "closeBottom": 105.6015625,
+      "closeTop": 61.6015625,
+      "scrollTop": 260.5,
+      "viewportHeight": 812
+    }
+  },
+  "navigation": {
+    "workspace": true,
+    "homepageToolsAbsent": true,
+    "bodyOverflowRestored": true
+  },
+  "result": "passed"
+}

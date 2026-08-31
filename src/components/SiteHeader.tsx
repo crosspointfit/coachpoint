@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const isHome = pathname === "/";
   const navClass = (href: string) =>
     `focus-ring relative rounded-lg px-3 py-2 transition-colors ${
       pathname.startsWith(href)
@@ -14,7 +15,7 @@ export default function SiteHeader() {
 
   return (
     <header className="border-b border-border bg-white">
-      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className={`mx-auto flex h-16 w-full items-center justify-between ${isHome ? "max-w-[1200px] px-5 sm:px-6" : "max-w-[1440px] px-4 sm:px-6 lg:px-8"}`}>
         <Link
           href="/"
           className="focus-ring inline-flex items-center gap-3 rounded-md"
@@ -34,6 +35,15 @@ export default function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-1 text-sm font-semibold" aria-label="Primary navigation">
+          {isHome ? (
+            <>
+              <a href="#exercise-library" className="focus-ring hidden rounded-lg px-3 py-2 text-slate-600 hover:text-primary-700 md:inline-flex">Movement library</a>
+              <a href="#how-it-works" className="focus-ring hidden rounded-lg px-3 py-2 text-slate-600 hover:text-primary-700 lg:inline-flex">How it works</a>
+              <Link href="/motion-lab" className="focus-ring mr-2 hidden rounded-lg px-3 py-2 text-slate-500 hover:text-primary-700 sm:inline-flex">Motion lab</Link>
+              <Link href="/therapist" className="focus-ring inline-flex min-h-10 items-center rounded-full bg-ink-900 px-5 text-xs font-bold text-white hover:bg-primary-800 sm:text-sm">Open workspace</Link>
+            </>
+          ) : (
+            <>
           <Link
             href="/therapist"
             className={navClass("/therapist")}
@@ -49,14 +59,8 @@ export default function SiteHeader() {
           >
             Motion lab
           </Link>
-          <a
-            href="https://webmcp.devpost.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="focus-ring hidden rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-50 hover:text-primary-700 lg:block"
-          >
-            WebMCP Challenge
-          </a>
+            </>
+          )}
         </nav>
       </div>
     </header>

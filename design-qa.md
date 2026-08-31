@@ -88,3 +88,113 @@ final result: passed
   layout/scroll widths both equal 360 within the 375px viewport.
 - Full-page screenshot stitching artifacts were excluded from final evidence;
   the retained viewport images were visually inspected.
+
+## Homepage redesign — PT HEP reference, 2026-08-31
+
+### Scope and visual target
+
+- User direction: remove the competition hyperlink entirely (not move it to
+  the footer), and improve the CoachPoint homepage using the PT `hep` branch's
+  design style. This is a style-led adaptation, not a copy of PT's commercial
+  claims, Chinese content, product routes or feature promises.
+- source visual truth path:
+  `/Users/tywang/Documents/AI/coachpoint/output/playwright/home-redesign-2026-08-31/pt-hep-home-reference.png`
+- implementation screenshot path:
+  `/Users/tywang/Documents/AI/coachpoint/output/playwright/home-redesign-2026-08-31/coachpoint-home-desktop.png`
+- source branch: `pt/hep`, commit `641c3b05a5a41fa0424aecc89f5e52d9e1959302`.
+- Imported token reference: `docs/design/pt-hep/DESIGN_SYSTEM.md` and
+  `docs/design/pt-hep/design-tokens.json` (15 colors, existing font stack,
+  radii, shadows and component provenance).
+- viewport/state: both desktop captures are 1280×720 CSS pixels, at page top,
+  light theme, no open preview. Both final PNGs are 1280×720 pixels; no density
+  resampling, cropping or full-page stitching was used. Mobile comparison is
+  375×812 CSS/pixel dimensions on both sides.
+
+### Comparison evidence and required surfaces
+
+The source and final implementation were opened together in one paired-image
+comparison input. They were judged as a style adaptation with the intentional
+content/asset changes below, not claimed as a pixel-identical clone.
+
+- Fonts and typography: navy, heavy two-line display hierarchy and quiet
+  supporting text follow the source. The English heading was shortened for
+  mobile wrapping. CoachPoint's existing English-first IBM Plex Sans/system
+  fallback stack is retained; PT's Chinese webfonts are not copied.
+- Spacing/layout: generous split hero, 48px alignment-grid motif, grouped
+  primary/secondary actions, three compact facts, staggered exercise cards,
+  numbered workflow, native FAQ and navy closing CTA follow the PT rhythm.
+  Marketing layout is scoped to home classes; therapist layout is unchanged.
+- Colors/tokens: source warm white, navy, blue, coral and border colors map to
+  existing CoachPoint tokens. No new gradient, glass layer or decorative art
+  system was added; the existing source-backed grid class is reused.
+- Image quality: the source-style Bridge/Chin Tuck/Bird Dog collage uses the
+  existing text-free WebP assets. Collage overlap is decorative, as in the
+  source. The functional gallery and preview dialog show full 4:3 images with
+  `object-contain`; all 18 homepage images loaded after gallery traversal.
+- Copy/content: all visible copy is English. The live fixture counts are 15
+  movements and three demo clients. No PT pricing, adherence percentages,
+  customer numbers, waitlist or cross-device promises were copied. Same-browser
+  storage and human-only confirmation are explicitly explained.
+- Icons and identity: existing CP/CoachPoint branding and Heroicons outline
+  assets remain; the source's Crosspoint logo is not substituted into the app.
+
+Focused card comparison used `pt-hep-gallery-reference.png` and
+`coachpoint-home-gallery.png` together. The source's portrait marquee is
+intentionally replaced by larger text-free cards with manual navigation.
+`coachpoint-home-preview-dialog.png` and `coachpoint-home-mobile-dialog.png`
+were inspected for image containment, long-title wrapping and accessible close
+controls. The dialog is an additional functional preview, not a static mock.
+
+### Comparison and fix history
+
+1. Desktop pass 1 (`coachpoint-home-pass1.png`): [P2] the floating review note
+   obscured the Bird Dog caption. The note was narrowed, moved left and given
+   shorter copy. Final desktop evidence shows all three labels unobstructed.
+2. Mobile pass 1 (`coachpoint-home-mobile-pass1.png`): [P2] the long English
+   title and wrapped CTA row delayed the visual content. The title and CTA
+   labels were shortened, and the collage spacing was tightened. The 375px
+   final capture shows the primary actions on one row and the illustration
+   beginning within the first viewport.
+3. Interaction pass: [P2] native Escape behavior did not close reliably through
+   the embedded browser keyboard path. An explicit Escape handler now closes
+   the dialog, restores body scrolling and returns focus to the invoking card.
+   The close header stays visible while the mobile dialog scrolls.
+4. Runtime follow-up: snap-padding tolerance fixes the carousel's edge-button
+   state. Hero-shared thumbnails and the visible dialog image load eagerly,
+   resolving Next.js LCP hints without eagerly loading the whole gallery.
+
+### Verified interactions and runtime
+
+- Breakpoints: 320×740, 375×812, 768×1024 and 1280×720. Document scroll width
+  equals layout width at all four sizes; no visible Chinese copy or competition
+  link remains. Horizontal gallery scrolling is intentional and contained.
+- Gallery: next/previous movement navigation, disabled edge controls, complete
+  traversal of all 15 items, full-image preview and long exercise titles.
+- Dialog: initial focus inside the modal, Escape close, close-button action,
+  body-scroll restoration, focus return and visible close control after mobile
+  internal scrolling (close button remained at y≈62–106 in an 812px viewport).
+- FAQ expands; workspace CTA and dialog link reach `/therapist`; browser back
+  returns home with no residual therapist WebMCP tools or body scroll lock.
+- Latest browser pass: zero console errors and zero warnings. Earlier
+  image-loading development hints were fixed and rechecked on a fresh reload.
+- `npm test`: 92 passed. Typecheck, lint and production build passed.
+- Anti-slop static checks on the homepage and new gallery returned no findings.
+  The qualitative pass found no unsupported metrics or filler business claims.
+
+### Remaining notes
+
+- [P3] Exact font rendering still depends on CoachPoint's existing local/system
+  fallback availability; self-hosting the same English font as PT can be a
+  separate typography-only refinement.
+- No clinical approval, camera validation, deployment or patient-data mutation
+  was performed in this homepage task.
+
+### Implementation checklist
+
+- [x] Competition hyperlink removed from global header, with no footer replacement
+- [x] Source-grounded English hero and real movement imagery
+- [x] Working gallery, accessible preview, internal navigation and FAQ
+- [x] Desktop/mobile comparison, image and runtime checks
+- [x] Existing therapist workflow and WebMCP boundaries preserved
+
+final result: passed
