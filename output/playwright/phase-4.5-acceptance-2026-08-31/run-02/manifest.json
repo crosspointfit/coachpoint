@@ -1,0 +1,911 @@
+{
+  "run": 2,
+  "origin": "http://127.0.0.1:44152",
+  "clientId": "demo-knee",
+  "buildId": "rZG2TXCMVZTwzvGicjIA7",
+  "mode": "native WebMCP with simulated therapist UI actions",
+  "startedAt": "2026-08-31T01:35:15.078Z",
+  "steps": [
+    {
+      "step": "fresh-dashboard",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 0,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "client-context",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": null,
+          "caseContext": {
+            "bodyRegion": "knee",
+            "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+            "equipment": [
+              "chair",
+              "step",
+              "wall"
+            ],
+            "goals": [
+              "comfortable knee mobility",
+              "stair confidence"
+            ],
+            "minutesPerDay": 12,
+            "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation."
+          },
+          "clientId": "demo-knee",
+          "currentDraft": null,
+          "displayName": "Demo Client — Knee",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [],
+          "status": "no-plan",
+          "statusLabel": "Ready for a prescription",
+          "synthetic": true,
+          "totalPrograms": 0
+        }
+      }
+    },
+    {
+      "step": "editor-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-knee",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_80a453fe-cfc9-45d8-8b5d-366220e37cb0",
+            "estimatedMinutes": 0,
+            "itemCount": 0,
+            "revision": 1,
+            "source": "therapist"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "catalog-search",
+      "results": [
+        {
+          "ok": true,
+          "value": {
+            "results": [
+              {
+                "bodyRegion": "knee",
+                "coachingMode": "camera",
+                "defaultDosage": {
+                  "frequencyPerDay": 1,
+                  "reps": 8,
+                  "restSeconds": 45,
+                  "sets": 2
+                },
+                "difficulty": 2,
+                "equipment": [
+                  "chair"
+                ],
+                "estimatedMinutes": 3,
+                "goals": [
+                  "lower-limb strength",
+                  "sit-to-stand preparation",
+                  "movement control"
+                ],
+                "id": "half-squat",
+                "name": "Supported Half Squat"
+              }
+            ]
+          }
+        },
+        {
+          "ok": true,
+          "value": {
+            "results": [
+              {
+                "bodyRegion": "ankle",
+                "coachingMode": "timer",
+                "defaultDosage": {
+                  "frequencyPerDay": 1,
+                  "reps": 12,
+                  "restSeconds": 45,
+                  "sets": 2
+                },
+                "difficulty": 2,
+                "equipment": [
+                  "chair"
+                ],
+                "estimatedMinutes": 3,
+                "goals": [
+                  "calf strength",
+                  "ankle control",
+                  "standing tolerance"
+                ],
+                "id": "heel-raise",
+                "name": "Supported Heel Raise"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "step": "exercise-details",
+      "results": [
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "knee",
+              "coachingMode": "camera",
+              "contraindications": [
+                "Do not use when loaded knee bending or weight bearing is restricted."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 8,
+                "restSeconds": 45,
+                "sets": 2
+              },
+              "difficulty": 2,
+              "equipment": [
+                "chair"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "lower-limb strength",
+                "sit-to-stand preparation",
+                "movement control"
+              ],
+              "id": "half-squat",
+              "instructions": [
+                "Bend the hips and knees through the therapist-defined range.",
+                "Keep the movement controlled and return to standing."
+              ],
+              "name": "Supported Half Squat",
+              "phaseTags": [
+                "knee-strength-foundation",
+                "camera-demo-candidate"
+              ],
+              "position": "Standing with support available",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "Use stable support and stop if pain or balance worsens."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        },
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "ankle",
+              "coachingMode": "timer",
+              "contraindications": [
+                "Do not use when weight bearing through the foot or ankle is restricted."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 12,
+                "restSeconds": 45,
+                "sets": 2
+              },
+              "difficulty": 2,
+              "equipment": [
+                "chair"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "calf strength",
+                "ankle control",
+                "standing tolerance"
+              ],
+              "id": "heel-raise",
+              "instructions": [
+                "Hold stable support and rise onto the balls of the feet.",
+                "Pause briefly, then lower with control."
+              ],
+              "name": "Supported Heel Raise",
+              "phaseTags": [
+                "ankle-strength-foundation",
+                "standing-demo"
+              ],
+              "position": "Standing with hand support",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "Keep support within reach and use an even, comfortable range."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "step": "native-draft",
+      "result": {
+        "ok": true,
+        "value": {
+          "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+          "estimatedMinutes": 4.7,
+          "itemCount": 2,
+          "status": "awaiting_therapist_review",
+          "warnings": [
+            "Agent draft — therapist review required.",
+            "Competition demo catalog only — therapist review is required before confirmation.",
+            "Supported Half Squat: Use stable support and stop if pain or balance worsens."
+          ]
+        }
+      }
+    },
+    {
+      "step": "stale-revision-blocked",
+      "result": {
+        "errors": [
+          {
+            "code": "draft_revision_conflict",
+            "field": "expectedDraftRevision",
+            "message": "The editor is now at revision 2. Read the visible draft again before replacing it.",
+            "recoverable": true
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "step": "simulated-therapist-edits",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-knee",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "awaiting_therapist_review"
+        }
+      },
+      "visibleText": "PRESCRIPTION DRAFT\n\nAGENT-CREATED\nReview and refine\n\n4.4min\n\nDAILY ESTIMATE\n\nDemo Client — Knee\n\nRevision 4 · 2 movements\n\nAWAITING REVIEW\n5 clinical review notes\n1\n\nSupported Heel Raise\n\n2 sets × 12 reps · 45s rest · 1× daily\n\nEdit dosage\n2\n\nSupported Half Squat\n\n2 sets × 6 reps · 45s rest · 1× daily\n\nEdit dosage\nConfirm prescription\n\nOnly the treating therapist can complete this action."
+    },
+    {
+      "step": "reload-preserves-draft",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-knee",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "simulated-ui-confirmation-v1",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_49D8A784E5844330A3D8901F33150C41",
+          "clientId": "demo-knee",
+          "confirmedCode": "CP_49D8A784E5844330A3D8901F33150C41",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "confirmed"
+        }
+      },
+      "visibleText": "Prescription confirmed. Patient link ready.\n\nPRESCRIPTION DRAFT\n\nAGENT-CREATED\nReview and refine\n\n4.4min\n\nDAILY ESTIMATE\n\nDemo Client — Knee\n\nRevision 4 · 2 movements\n\nCONFIRMED\n5 clinical review notes\n1\n\nSupported Heel Raise\n\n2 sets × 12 reps · 45s rest · 1× daily\n\nEdit dosage\n2\n\nSupported Half Squat\n\n2 sets × 6 reps · 45s rest · 1× daily\n\nEdit dosage\n\nPrescription confirmed · CP_49D8A78…150C41\n\nRevise plan\nNew draft\nCopy link\nOpen patient"
+    },
+    {
+      "step": "patient-v1",
+      "url": "http://127.0.0.1:44152/patient/CP_49D8A784E5844330A3D8901F33150C41",
+      "visibleText": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Knee\n\nTherapist-confirmed revision 4 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nSupported Heel Raise\n\nStanding with hand support\n\nTarget: 12 reps\n\nHold stable support and rise onto the balls of the feet.\nPause briefly, then lower with control.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nSupported Heel Raise\n\nSet 1 · 12 reps\n\nPlanned\n2\n\nSupported Heel Raise\n\nSet 2 · 12 reps\n\nPlanned\n3\n\nSupported Half Squat\n\nSet 1 · 6 reps\n\nPlanned\n4\n\nSupported Half Squat\n\nSet 2 · 6 reps\n\nPlanned"
+    },
+    {
+      "step": "patient-tool-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    },
+    {
+      "step": "hub-active-v1",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_49D8A784E5844330A3D8901F33150C41",
+            "confirmedAt": "2026-08-31T01:37:10.012Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-knee/programs/program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_49D8A784E5844330A3D8901F33150C41",
+            "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "knee",
+            "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+            "equipment": [
+              "chair",
+              "step",
+              "wall"
+            ],
+            "goals": [
+              "comfortable knee mobility",
+              "stair confidence"
+            ],
+            "minutesPerDay": 12,
+            "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation."
+          },
+          "clientId": "demo-knee",
+          "currentDraft": null,
+          "displayName": "Demo Client — Knee",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:37:10.012Z",
+              "detail": "Revision 4 · patient program CP_49D8A784E5844330A3D8901F33150C41."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:36:24.962Z",
+              "detail": "Supported Half Squat moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:36:24.651Z",
+              "detail": "Supported Half Squat"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:36:18.347Z",
+              "detail": "2 exercises · 4.7 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:36:16.004Z",
+              "detail": "Supported Heel Raise"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "dashboard-active-isolation",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": true,
+              "itemCount": 2,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "View care plan"
+              },
+              "status": "active",
+              "statusLabel": "Active",
+              "synthetic": true,
+              "updatedAt": "2026-08-31T01:37:10.012Z"
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 1,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "back-navigation-fresh",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_49D8A784E5844330A3D8901F33150C41",
+            "confirmedAt": "2026-08-31T01:37:10.012Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-knee/programs/program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_49D8A784E5844330A3D8901F33150C41",
+            "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "knee",
+            "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+            "equipment": [
+              "chair",
+              "step",
+              "wall"
+            ],
+            "goals": [
+              "comfortable knee mobility",
+              "stair confidence"
+            ],
+            "minutesPerDay": 12,
+            "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation."
+          },
+          "clientId": "demo-knee",
+          "currentDraft": null,
+          "displayName": "Demo Client — Knee",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:37:10.012Z",
+              "detail": "Revision 4 · patient program CP_49D8A784E5844330A3D8901F33150C41."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:36:24.962Z",
+              "detail": "Supported Half Squat moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:36:24.651Z",
+              "detail": "Supported Half Squat"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:36:18.347Z",
+              "detail": "2 exercises · 4.7 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:36:16.004Z",
+              "detail": "Supported Heel Raise"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "revision-keeps-active-lineage",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_49D8A784E5844330A3D8901F33150C41",
+          "clientId": "demo-knee",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+            "estimatedMinutes": 4.4,
+            "itemCount": 2,
+            "revision": 5,
+            "source": "therapist"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "simulated-ui-confirmation-v2",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_46F5558A03E34855885337D08A68216F",
+          "clientId": "demo-knee",
+          "confirmedCode": "CP_46F5558A03E34855885337D08A68216F",
+          "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+          "draft": {
+            "draftId": "draft_1f85855a-5a89-478c-8ad5-0f743d5e40c4",
+            "estimatedMinutes": 4.3,
+            "itemCount": 2,
+            "revision": 6,
+            "source": "therapist"
+          },
+          "minutesPerDay": 12,
+          "patientLabel": "Demo Client — Knee",
+          "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+          "status": "confirmed"
+        }
+      },
+      "visibleText": "Confirmed plan reopened as an editable draft.\n\nPRESCRIPTION DRAFT\n\nTHERAPIST-CREATED\nReview and refine\n\n4.3min\n\nDAILY ESTIMATE\n\nDemo Client — Knee\n\nRevision 6 · 2 movements\n\nAWAITING REVIEW\n5 clinical review notes\n1\n\nSupported Heel Raise\n\n2 sets × 12 reps · 45s rest · 1× daily\n\nEdit dosage\n2\n\nSupported Half Squat\n\n2 sets × 5 reps · 45s rest · 1× daily\n\nEdit dosage\nConfirm prescription\n\nOnly the treating therapist can complete this action."
+    },
+    {
+      "step": "immutable-history",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_46F5558A03E34855885337D08A68216F",
+            "confirmedAt": "2026-08-31T01:38:08.083Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-knee/programs/program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "estimatedMinutes": 4.3,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_46F5558A03E34855885337D08A68216F",
+            "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+            "revision": 6
+          },
+          "caseContext": {
+            "bodyRegion": "knee",
+            "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+            "equipment": [
+              "chair",
+              "step",
+              "wall"
+            ],
+            "goals": [
+              "comfortable knee mobility",
+              "stair confidence"
+            ],
+            "minutesPerDay": 12,
+            "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation."
+          },
+          "clientId": "demo-knee",
+          "currentDraft": null,
+          "displayName": "Demo Client — Knee",
+          "history": {
+            "entries": [
+              {
+                "code": "CP_49D8A784E5844330A3D8901F33150C41",
+                "confirmedAt": "2026-08-31T01:37:10.012Z",
+                "editorHref": "/therapist/clients/demo-knee/programs/program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+                "itemCount": 2,
+                "kind": "confirmed_version",
+                "patientHref": "/patient/CP_49D8A784E5844330A3D8901F33150C41",
+                "programId": "program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+                "revision": 4
+              }
+            ],
+            "limit": 20,
+            "total": 1,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:38:08.083Z",
+              "detail": "Revision 6 · patient program CP_46F5558A03E34855885337D08A68216F."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:38:07.756Z",
+              "detail": "Supported Half Squat"
+            },
+            {
+              "action": "Reopened the confirmed plan for revision.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:38:03.586Z",
+              "detail": "The existing patient link CP_49D8A784E5844330A3D8901F33150C41 remains active until a replacement is confirmed."
+            },
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:37:10.012Z",
+              "detail": "Revision 4 · patient program CP_49D8A784E5844330A3D8901F33150C41."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:36:24.962Z",
+              "detail": "Supported Half Squat moved to position 2."
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "immutable-patient-links-and-history-navigation",
+      "old": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Knee\n\nTherapist-confirmed revision 4 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nSupported Heel Raise\n\nStanding with hand support\n\nTarget: 12 reps\n\nHold stable support and rise onto the balls of the feet.\nPause briefly, then lower with control.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nSupported Heel Raise\n\nSet 1 · 12 reps\n\nPlanned\n2\n\nSupported Heel Raise\n\nSet 2 · 12 reps\n\nPlanned\n3\n\nSupported Half Squat\n\nSet 1 · 6 reps\n\nPlanned\n4\n\nSupported Half Squat\n\nSet 2 · 6 reps\n\nPlanned",
+      "new": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Knee\n\nTherapist-confirmed revision 6 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nSupported Heel Raise\n\nStanding with hand support\n\nTarget: 12 reps\n\nHold stable support and rise onto the balls of the feet.\nPause briefly, then lower with control.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nSupported Heel Raise\n\nSet 1 · 12 reps\n\nPlanned\n2\n\nSupported Heel Raise\n\nSet 2 · 12 reps\n\nPlanned\n3\n\nSupported Half Squat\n\nSet 1 · 5 reps\n\nPlanned\n4\n\nSupported Half Squat\n\nSet 2 · 5 reps\n\nPlanned"
+    },
+    {
+      "step": "cross-client-editor-denied",
+      "visibleText": "- banner:\n  - link \"CoachPoint home\":\n    - /url: /\n    - generic: CP\n    - generic: CoachPoint\n    - generic: by Crosspoint\n  - navigation \"Primary navigation\":\n    - link \"Therapist workspace\":\n      - /url: /therapist\n    - link \"Motion lab\":\n      - /url: /motion-lab\n    - link \"WebMCP Challenge\":\n      - /url: https://webmcp.devpost.com/\n- main:\n  - paragraph: Prescription unavailable\n  - heading \"This synthetic program could not be found.\" [level=1]\n  - paragraph: Return to the client record and open an existing program or create a new draft.\n  - link \"Back to client\":\n    - /url: /therapist/clients/demo-balance\n    - text: Back to client\n- contentinfo:\n  - paragraph: Open-source WebMCP Challenge project by Crosspoint.\n  - paragraph: Educational demonstration only. Not medical diagnosis or a substitute for clinician instructions.\n- alert",
+      "tools": "No WebMCP tools are available in this document."
+    },
+    {
+      "step": "landing-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    }
+  ],
+  "context": {
+    "activeConfirmedVersion": null,
+    "caseContext": {
+      "bodyRegion": "knee",
+      "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+      "equipment": [
+        "chair",
+        "step",
+        "wall"
+      ],
+      "goals": [
+        "comfortable knee mobility",
+        "stair confidence"
+      ],
+      "minutesPerDay": 12,
+      "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation."
+    },
+    "clientId": "demo-knee",
+    "currentDraft": null,
+    "displayName": "Demo Client — Knee",
+    "history": {
+      "entries": [],
+      "limit": 20,
+      "total": 0,
+      "truncated": false
+    },
+    "recentActivity": [],
+    "status": "no-plan",
+    "statusLabel": "Ready for a prescription",
+    "synthetic": true,
+    "totalPrograms": 0
+  },
+  "editorUrl": "http://127.0.0.1:44152/therapist/clients/demo-knee/programs/program_9974f1fb-5653-45b1-bea6-45d033a5eb24",
+  "chosen": [
+    {
+      "bodyRegion": "knee",
+      "coachingMode": "camera",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "reps": 8,
+        "restSeconds": 45,
+        "sets": 2
+      },
+      "difficulty": 2,
+      "equipment": [
+        "chair"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "lower-limb strength",
+        "sit-to-stand preparation",
+        "movement control"
+      ],
+      "id": "half-squat",
+      "name": "Supported Half Squat"
+    },
+    {
+      "bodyRegion": "ankle",
+      "coachingMode": "timer",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "reps": 12,
+        "restSeconds": 45,
+        "sets": 2
+      },
+      "difficulty": 2,
+      "equipment": [
+        "chair"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "calf strength",
+        "ankle control",
+        "standing tolerance"
+      ],
+      "id": "heel-raise",
+      "name": "Supported Heel Raise"
+    }
+  ],
+  "input": {
+    "expectedDraftRevision": 1,
+    "caseContext": {
+      "bodyRegion": "knee",
+      "diagnosis": "Synthetic knee mobility and stair-tolerance case",
+      "equipment": [
+        "chair",
+        "step",
+        "wall"
+      ],
+      "goals": [
+        "comfortable knee mobility",
+        "stair confidence"
+      ],
+      "minutesPerDay": 12,
+      "notes": "Synthetic competition case. The therapist must review dosage and suitability before confirmation.",
+      "patientLabel": "Demo Client — Knee"
+    },
+    "items": [
+      {
+        "exerciseId": "half-squat",
+        "frequencyPerDay": 1,
+        "reps": 8,
+        "restSeconds": 45,
+        "sets": 2
+      },
+      {
+        "exerciseId": "heel-raise",
+        "frequencyPerDay": 1,
+        "reps": 12,
+        "restSeconds": 45,
+        "sets": 2
+      }
+    ]
+  },
+  "firstCode": "CP_49D8A784E5844330A3D8901F33150C41",
+  "firstPatientUrl": "http://127.0.0.1:44152/patient/CP_49D8A784E5844330A3D8901F33150C41",
+  "secondCode": "CP_46F5558A03E34855885337D08A68216F",
+  "secondPatientUrl": "http://127.0.0.1:44152/patient/CP_46F5558A03E34855885337D08A68216F",
+  "runtime": {
+    "brokenImages": 0,
+    "cjk": false,
+    "scrollWidth": 1265,
+    "viewport": {
+      "height": 720,
+      "width": 1265
+    }
+  },
+  "console": [],
+  "completedAt": "2026-08-31T01:38:48.163Z",
+  "result": "passed",
+  "screenshots": [
+    "old-patient-viewport.png",
+    "new-patient-viewport.png",
+    "history-viewport.png"
+  ]
+}

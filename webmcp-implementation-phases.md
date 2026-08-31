@@ -1,7 +1,7 @@
 # CoachPoint WebMCP Challenge — Phase-based Implementation Plan
 
 > Status: Approved implementation direction
-> Last updated: 2026-08-30 (Asia/Taipei)
+> Last updated: 2026-08-31 (Asia/Taipei)
 > Related source: [`webmcp-challenge-spec.md`](./webmcp-challenge-spec.md)
 > Reusable source project: `/Users/tywang/Documents/AI/pt`
 
@@ -35,14 +35,16 @@ Updated after the first implementation checkpoint on 2026-08-28:
 - **Phase 4 external-release items remain:** confirm the public license for the
   reused exercise illustrations, create the public remote repository, deploy
   to HTTPS, and repeat browser verification on the deployed origin.
-- **Phase 4.5A–B — implemented locally; Phase 4.5C–D remain.** The browser-local
+- **Phase 4.5A–D — local software acceptance passed.** The browser-local
   V2 synthetic caseload, deterministic V1 migration, three-client dashboard,
   client program hub, immutable confirmed-version history, and client/program
-  scoped editor routes are implemented. Fifty-one tests, typecheck, lint,
-  production build, mobile probes, deep-link recovery, client-isolation checks,
-  stale-agent revision rejection, and editor-tool cleanup pass. Dashboard
-  `list_clients`, client-detail `get_client_summary`, and the formal three-run
-  reopened acceptance gate remain before Phase 4.5 is complete.
+  scoped editor routes are implemented. Dashboard `list_clients` and
+  client-detail `get_client_summary` consume the same visible, hydrated
+  projections as the UI. Ninety tests, typecheck, lint, production build,
+  mobile/manual-mode checks and three isolated native-WebMCP workflows pass.
+  The three-run gate used simulated therapist UI confirmation, not an agent
+  confirmation tool or real clinical care. Deployed HTTPS and clinician
+  acceptance remain external gates. Evidence: [Phase 4.5 acceptance](./docs/phase-4.5-acceptance.md).
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
   create a versioned patient session, support timer/manual sets, pause/resume,
   skip, stop, RPE, pain reporting, a pain safety gate at 5/10, per-transition
@@ -109,8 +111,8 @@ Data and safety boundaries
 
 This ordering keeps the therapist-side product and its authority boundaries
 stable before patient-agent orchestration and release. The already completed
-patient fallback and motion-engine foundations remain intact while Phase 4.5
-is implemented.
+patient fallback and motion-engine foundations remain intact; Phase 4.5 is now
+locally verified, with its deployed-origin gate still pending.
 
 ## 3. Architectural Principle: Reflex Layer and Cognitive Layer
 
@@ -407,7 +409,7 @@ patient accounts, or allow an agent to confirm a prescription.
   - Shows the active confirmed program and immutable version history.
   - Shows only session or adherence summaries that already exist and can be
     verified in the visible UI.
-- `/therapist/clients/[clientId]/program` becomes the program editor.
+- `/therapist/clients/[clientId]/programs/[programId]` becomes the program editor.
   - Reuses the validated catalog search, details, draft validation, dosage,
     ordering, duration, warning, and manual confirmation operations.
   - Supports a visible agent-created draft and subsequent therapist edits.
@@ -428,8 +430,10 @@ can represent:
 - Each client's ordered confirmed-version history and `activeProgramCode`
 - Client-scoped, bounded activity attribution
 
-The URL owns the selected client and editor context; a global "current
-client" selection is not persisted.
+The URL alone owns the selected client and editor context. The V2
+`activeClientId`/`activeProgramId` fields are retained as legacy compatibility
+metadata, not UI/tool selection authority. Active confirmed versions are
+resolved per client by the shared deterministic confirmation-time selector.
 
 Confirmation creates a new immutable confirmed version and a new patient
 program code. Older confirmed versions and their patient links remain readable
@@ -457,6 +461,8 @@ not register a persistent therapist tool set from a shared layout.
 
 - `list_clients`
   - Read-only and bounded.
+  - Accepts `{}` only and follows the currently visible search/status filters.
+  - Returns at most three synthetic client rows and the visible aggregate counts.
   - Returns only the anonymous labels, active-program status, concise visible
     follow-up flags, and route identifiers represented on the dashboard.
 
@@ -464,8 +470,13 @@ not register a persistent therapist tool set from a shared layout.
 
 - `get_client_summary`
   - Read-only.
+  - Accepts `{}` only; arbitrary client/program identifiers are rejected.
   - Returns the visible case context, active confirmed version, immutable
     program history, and only currently implemented, visible session facts.
+  - History is capped at 20 concise rows with total/truncation metadata;
+    recent activity is capped at the five visible rows. Raw dosage/items and
+    unseen historical notes are excluded. No session/adherence aggregate is
+    returned until one exists in this UI.
   - Patient-entered notes, skip reasons, and similar fields remain untrusted
     content.
 
@@ -530,6 +541,20 @@ are registered, client A operations cannot affect client B, refresh and deep
 links preserve the correct data, and the agent cannot bypass therapist
 confirmation. Repeat the same gate on the deployed HTTPS origin before
 release.
+
+### Local gate result — 2026-08-31
+
+Three sequential runs passed against production build
+`rZG2TXCMVZTwzvGicjIA7` on isolated loopback origins: shoulder, knee and balance.
+Each used the native in-app Browser WebMCP transport, then simulated therapist
+UI dosage/order edits and two confirmations. Fresh reload, client isolation,
+old/new patient-link immutability, history, back/forward and route cleanup
+passed. Run 3 refreshed two stale read handles after document/route changes;
+no write or confirmation was replayed. Pending-registration and in-flight
+cancellation are additionally covered by deterministic lifecycle tests.
+
+See [the acceptance report](./docs/phase-4.5-acceptance.md) for evidence,
+reproduction steps, manual-mode results and the remaining external gates.
 
 ---
 
@@ -796,11 +821,13 @@ Do not start these until the complete golden path is stable:
 
 ## 6. Next Implementation Action
 
-Complete Phase 4.5C–D next without broadening it into an authentication or
-member-account project: add the bounded read-only dashboard/client-detail
-tools, then run the reopened acceptance gate three consecutive times.
+The Phase 4.5C–D local software gate is complete. Next, finish the remaining
+Phase 6 user-assisted Motion Lab camera acceptance before implementing patient
+WebMCP orchestration. Camera permission must be explicitly granted; verify
+counting accuracy, framing, side selection, loss-of-tracking and stop behavior
+without saving raw video.
 
-The next milestone is a deployed multi-route synthetic therapist hub where
-each leaf route exposes only its minimal WebMCP tools and the complete
-dashboard → client → editor → human confirmation → client history workflow
-passes on the deployed origin.
+The parallel external-release track still needs an approved public asset
+license/provenance boundary, public repository and HTTPS destination. Once
+deployed, repeat the complete dashboard → client → editor → human confirmation
+→ client history workflow on that origin before competition release.

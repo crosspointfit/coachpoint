@@ -25,17 +25,29 @@ class FakeModelContext implements WebMcpModelContext {
     options?: WebMcpRegistrationOptions;
   }> = [];
 
-  readonly activeNames = new Set<string>();
+  readonly registrations = new Map<string, WebMcpToolDescriptor>();
+
+  get activeNames(): Set<string> {
+    return new Set(this.registrations.keys());
+  }
 
   async registerTool(
     tool: WebMcpToolDescriptor,
     options?: WebMcpRegistrationOptions,
   ): Promise<void> {
+    options?.signal?.throwIfAborted();
+    if (this.registrations.has(tool.name)) {
+      throw new Error(`Duplicate active tool: ${tool.name}`);
+    }
     this.calls.push({ tool, options });
-    this.activeNames.add(tool.name);
+    this.registrations.set(tool.name, tool);
     options?.signal?.addEventListener(
       "abort",
-      () => this.activeNames.delete(tool.name),
+      () => {
+        if (this.registrations.get(tool.name) === tool) {
+          this.registrations.delete(tool.name);
+        }
+      },
       { once: true },
     );
   }

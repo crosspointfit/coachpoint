@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -12,38 +12,20 @@ import {
   UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
-import type {
-  SyntheticClient,
-  TherapistProgramRecord,
-} from "@/domain/caseload";
-import type { ConfirmedProgram } from "@/domain/types";
 import {
-  listClients,
-  listProgramsForClient,
-  readCaseload,
-} from "@/lib/caseloadStorage";
-
-type ClientStatus = "needs-review" | "draft" | "active" | "no-plan";
-type StatusFilter = "all" | ClientStatus;
-
-interface ClientSummary {
-  client: SyntheticClient;
-  currentProgram: TherapistProgramRecord | null;
-  activeConfirmedProgram: ConfirmedProgram | null;
-  status: ClientStatus;
-  statusLabel: string;
-  itemCount: number;
-  hasActiveProgram: boolean;
-  updatedAt?: string;
-}
-
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "All clients" },
-  { value: "needs-review", label: "Needs review" },
-  { value: "draft", label: "Draft" },
-  { value: "active", label: "Active" },
-  { value: "no-plan", label: "No plan" },
-];
+  CLIENT_STATUS_FILTERS as STATUS_FILTERS,
+  selectClientDirectory,
+  type ClientDirectoryView,
+  type ClientStatus,
+  type ClientStatusFilter as StatusFilter,
+} from "@/domain/caseload-views";
+import { useCaseloadSnapshot } from "@/lib/use-caseload-snapshot";
+import {
+  createDashboardToolDescriptors,
+  useWebMcpTools,
+  type WebMcpToolDescriptor,
+} from "@/lib/webmcp";
+import WebMcpStatusBadge from "./WebMcpStatusBadge";
 
 const STATUS_STYLES: Record<ClientStatus, string> = {
   "needs-review": "bg-[#FFF0EC] text-coral-600",
@@ -51,62 +33,6 @@ const STATUS_STYLES: Record<ClientStatus, string> = {
   active: "bg-primary-100 text-primary-700",
   "no-plan": "bg-slate-100 text-slate-600",
 };
-
-function summarizeClient(
-  client: SyntheticClient,
-  programs: TherapistProgramRecord[],
-): ClientSummary {
-  const draft = programs.find((program) => program.status === "draft") ?? null;
-  const activeSelection =
-    programs
-      .filter((program) => program.status !== "archived")
-      .flatMap((program) =>
-        program.confirmedCodes.flatMap((code) => {
-          const version = program.confirmedVersions[code];
-          return version ? [{ program, version }] : [];
-        }),
-      )
-      .sort((a, b) =>
-        b.version.confirmedAt.localeCompare(a.version.confirmedAt),
-      )[0] ?? null;
-  const active = activeSelection?.program ?? null;
-  const activeConfirmedProgram = activeSelection?.version ?? null;
-  const currentProgram = draft ?? active ?? programs[0] ?? null;
-  const draftSource = draft?.workspace.draft?.source;
-  const draftItemCount = draft?.workspace.draft?.items.length ?? 0;
-
-  const status: ClientStatus = draft
-    ? draftSource === "agent" && draftItemCount > 0
-      ? "needs-review"
-      : "draft"
-    : active
-      ? "active"
-      : "no-plan";
-
-  const statusLabel =
-    status === "needs-review"
-      ? "Needs review"
-      : status === "draft"
-        ? "Draft"
-        : status === "active"
-          ? "Active"
-          : "No plan";
-
-  const itemCount = draft
-    ? (draft.workspace.draft?.items.length ?? 0)
-    : (activeConfirmedProgram?.items.length ?? 0);
-
-  return {
-    client,
-    currentProgram,
-    activeConfirmedProgram,
-    status,
-    statusLabel,
-    itemCount,
-    hasActiveProgram: Boolean(active),
-    updatedAt: draft?.updatedAt ?? activeConfirmedProgram?.confirmedAt,
-  };
-}
 
 function stableDate(value?: string): string {
   if (!value) return "Not started";
@@ -116,22 +42,6 @@ function stableDate(value?: string): string {
     month: "short",
     day: "numeric",
   }).format(date);
-}
-
-function clientNextStep(summary: ClientSummary) {
-  if (
-    (summary.status === "needs-review" || summary.status === "draft") &&
-    summary.currentProgram
-  ) {
-    return {
-      href: `/therapist/clients/${summary.client.id}/programs/${summary.currentProgram.programId}`,
-      label: summary.status === "needs-review" ? "Review draft" : "Continue draft",
-    };
-  }
-  return {
-    href: `/therapist/clients/${summary.client.id}`,
-    label: summary.status === "active" ? "View care plan" : "Open client",
-  };
 }
 
 function DashboardSkeleton() {
@@ -161,72 +71,30 @@ function DashboardSkeleton() {
 }
 
 export default function TherapistDashboard() {
-  const [clients, setClients] = useState<SyntheticClient[]>([]);
-  const [programsByClient, setProgramsByClient] = useState<
-    Record<string, TherapistProgramRecord[]>
-  >({});
+  const snapshot = useCaseloadSnapshot();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [hydrated, setHydrated] = useState(false);
-
+  const directory = useMemo(
+    () => snapshot ? selectClientDirectory(snapshot, { query, status: statusFilter }) : null,
+    [snapshot, query, statusFilter],
+  );
+  const hydrated = directory !== null;
+  const visibleView = useRef<ClientDirectoryView | null>(null);
   useEffect(() => {
-    const hydrationTimer = window.setTimeout(() => {
-      readCaseload();
-      const nextClients = listClients();
-      setClients(nextClients);
-      setProgramsByClient(
-        Object.fromEntries(
-          nextClients.map((client) => [
-            client.id,
-            listProgramsForClient(client.id),
-          ]),
-        ),
-      );
-      setHydrated(true);
-    }, 0);
-
-    return () => window.clearTimeout(hydrationTimer);
-  }, []);
-
-  const summaries = useMemo(
-    () =>
-      clients.map((client) =>
-        summarizeClient(client, programsByClient[client.id] ?? []),
-      ),
-    [clients, programsByClient],
-  );
-
-  const counts = useMemo(
-    () => ({
-      total: summaries.length,
-      review: summaries.filter((summary) => summary.status === "needs-review")
-        .length,
-      active: summaries.filter((summary) => summary.hasActiveProgram).length,
-      drafts: summaries.filter(
-        (summary) =>
-          summary.status === "draft" || summary.status === "needs-review",
-      ).length,
-    }),
-    [summaries],
-  );
-
-  const visibleSummaries = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("en-US");
-    return summaries.filter((summary) => {
-      if (statusFilter !== "all" && summary.status !== statusFilter) return false;
-      if (!normalizedQuery) return true;
-      const searchable = [
-        summary.client.displayName,
-        summary.client.caseContext.diagnosis,
-        summary.client.caseContext.bodyRegion,
-        ...summary.client.caseContext.goals,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLocaleLowerCase("en-US");
-      return searchable.includes(normalizedQuery);
-    });
-  }, [query, statusFilter, summaries]);
+    visibleView.current = directory;
+    return () => { visibleView.current = null; };
+  }, [directory]);
+  const [descriptors, setDescriptors] = useState<readonly WebMcpToolDescriptor[]>([]);
+  useEffect(() => {
+    if (!hydrated) return;
+    let active = true;
+    const tools = createDashboardToolDescriptors(() => visibleView.current);
+    void Promise.resolve().then(() => { if (active) setDescriptors(tools); });
+    return () => { active = false; };
+  }, [hydrated]);
+  const webMcp = useWebMcpTools(descriptors);
+  const counts = directory?.counts ?? { total: 0, review: 0, active: 0, drafts: 0 };
+  const visibleSummaries = directory?.visibleClients ?? [];
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -244,10 +112,13 @@ export default function TherapistDashboard() {
               programs from one synthetic competition workspace.
             </p>
           </div>
-          <span className="inline-flex h-9 items-center gap-2 rounded-full border border-primary-100 bg-white px-3 text-[11px] font-bold text-primary-700">
-            <ShieldCheckIcon className="h-4 w-4" aria-hidden="true" />
-            Synthetic demo data only
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <WebMcpStatusBadge state={webMcp} />
+            <span className="inline-flex h-9 items-center gap-2 rounded-full border border-primary-100 bg-white px-3 text-[11px] font-bold text-primary-700">
+              <ShieldCheckIcon className="h-4 w-4" aria-hidden="true" />
+              Synthetic demo data only
+            </span>
+          </div>
         </div>
 
         <dl className="mt-7 grid overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--cp-shadow-card)] sm:grid-cols-3">
@@ -383,7 +254,7 @@ export default function TherapistDashboard() {
           ) : (
             <ul>
               {visibleSummaries.map((summary) => {
-                const nextStep = clientNextStep(summary);
+                const nextStep = summary.nextStep;
                 const context = summary.client.caseContext;
                 return (
                   <li

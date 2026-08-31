@@ -1,0 +1,912 @@
+{
+  "run": 3,
+  "origin": "http://127.0.0.1:44153",
+  "clientId": "demo-balance",
+  "buildId": "rZG2TXCMVZTwzvGicjIA7",
+  "mode": "native WebMCP with simulated therapist UI actions",
+  "startedAt": "2026-08-31T01:39:13.164Z",
+  "steps": [
+    {
+      "step": "fresh-dashboard",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 0,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "client-context",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": null,
+          "caseContext": {
+            "bodyRegion": "balance",
+            "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+            "equipment": [
+              "chair",
+              "wall"
+            ],
+            "goals": [
+              "steadier standing balance",
+              "walking confidence"
+            ],
+            "minutesPerDay": 10,
+            "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions."
+          },
+          "clientId": "demo-balance",
+          "currentDraft": null,
+          "displayName": "Demo Client — Balance",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [],
+          "status": "no-plan",
+          "statusLabel": "Ready for a prescription",
+          "synthetic": true,
+          "totalPrograms": 0
+        }
+      }
+    },
+    {
+      "step": "editor-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-balance",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_0df4fbbd-59bb-4e5d-8f65-1bee94bb11a4",
+            "estimatedMinutes": 0,
+            "itemCount": 0,
+            "revision": 1,
+            "source": "therapist"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "catalog-search",
+      "results": [
+        {
+          "ok": true,
+          "value": {
+            "results": [
+              {
+                "bodyRegion": "balance",
+                "coachingMode": "timer",
+                "defaultDosage": {
+                  "frequencyPerDay": 1,
+                  "holdSeconds": 20,
+                  "restSeconds": 30,
+                  "sets": 2
+                },
+                "difficulty": 3,
+                "equipment": [
+                  "chair"
+                ],
+                "estimatedMinutes": 3,
+                "goals": [
+                  "balance",
+                  "single-leg control",
+                  "fall-risk management"
+                ],
+                "id": "single-leg-balance",
+                "name": "Supported Single-Leg Balance"
+              }
+            ]
+          }
+        },
+        {
+          "ok": true,
+          "value": {
+            "results": [
+              {
+                "bodyRegion": "hip",
+                "coachingMode": "timer",
+                "defaultDosage": {
+                  "frequencyPerDay": 1,
+                  "reps": 10,
+                  "restSeconds": 45,
+                  "sets": 2
+                },
+                "difficulty": 2,
+                "equipment": [
+                  "chair"
+                ],
+                "estimatedMinutes": 3,
+                "goals": [
+                  "hip strength",
+                  "standing control",
+                  "balance"
+                ],
+                "id": "standing-hip-abduction",
+                "name": "Standing Hip Abduction"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "step": "exercise-details",
+      "results": [
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "balance",
+              "coachingMode": "timer",
+              "contraindications": [
+                "Do not perform without direct assistance when the therapist has identified unsafe standing balance."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "holdSeconds": 20,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 3,
+              "equipment": [
+                "chair"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "balance",
+                "single-leg control",
+                "fall-risk management"
+              ],
+              "id": "single-leg-balance",
+              "instructions": [
+                "Keep a hand near stable support and lift one foot only as directed.",
+                "Set the foot down whenever balance feels uncertain."
+              ],
+              "name": "Supported Single-Leg Balance",
+              "phaseTags": [
+                "supported-balance",
+                "fall-prevention-demo"
+              ],
+              "position": "Standing beside stable support",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "A stable support and a clear surrounding area are required."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        },
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "hip",
+              "coachingMode": "timer",
+              "contraindications": [
+                "Do not perform unsupported when standing balance has not been cleared."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 10,
+                "restSeconds": 45,
+                "sets": 2
+              },
+              "difficulty": 2,
+              "equipment": [
+                "chair"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "hip strength",
+                "standing control",
+                "balance"
+              ],
+              "id": "standing-hip-abduction",
+              "instructions": [
+                "Hold a stable support and move the leg out to the side without leaning.",
+                "Return slowly while keeping the toes generally forward."
+              ],
+              "name": "Standing Hip Abduction",
+              "phaseTags": [
+                "hip-strength-foundation",
+                "standing-balance-demo"
+              ],
+              "position": "Standing with hand support",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "Use stable support and a range that does not disturb balance."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "step": "native-draft",
+      "result": {
+        "ok": true,
+        "value": {
+          "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+          "estimatedMinutes": 3.8,
+          "itemCount": 2,
+          "status": "awaiting_therapist_review",
+          "warnings": [
+            "Agent draft — therapist review required.",
+            "Competition demo catalog only — therapist review is required before confirmation.",
+            "Supported Single-Leg Balance: A stable support and a clear surrounding area are required."
+          ]
+        }
+      }
+    },
+    {
+      "step": "stale-revision-blocked",
+      "result": {
+        "errors": [
+          {
+            "code": "draft_revision_conflict",
+            "field": "expectedDraftRevision",
+            "message": "The editor is now at revision 2. Read the visible draft again before replacing it.",
+            "recoverable": true
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "step": "simulated-therapist-edits",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-balance",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "awaiting_therapist_review"
+        }
+      },
+      "visibleText": "PRESCRIPTION DRAFT\n\nAGENT-CREATED\nReview and refine\n\n3.6min\n\nDAILY ESTIMATE\n\nDemo Client — Balance\n\nRevision 4 · 2 movements\n\nAWAITING REVIEW\n5 clinical review notes\n1\n\nStanding Hip Abduction\n\n2 sets × 10 reps · 45s rest · 1× daily\n\nEdit dosage\n2\n\nSupported Single-Leg Balance\n\n2 sets × 15 sec hold · 30s rest · 1× daily\n\nEdit dosage\nConfirm prescription\n\nOnly the treating therapist can complete this action."
+    },
+    {
+      "step": "reload-preserves-draft",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-balance",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "native-handle-refresh",
+      "reason": "Read handle reported stale after reload; refreshed using fetchTools without repeating confirmation."
+    },
+    {
+      "step": "simulated-ui-confirmation-v1",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+          "clientId": "demo-balance",
+          "confirmedCode": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "confirmed"
+        }
+      }
+    },
+    {
+      "step": "patient-v1",
+      "url": "http://127.0.0.1:44153/patient/CP_E6D14882A7E1464097C61DD88B34C2FF",
+      "visibleText": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Balance\n\nTherapist-confirmed revision 4 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nStanding Hip Abduction\n\nStanding with hand support\n\nTarget: 10 reps\n\nHold a stable support and move the leg out to the side without leaning.\nReturn slowly while keeping the toes generally forward.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nStanding Hip Abduction\n\nSet 1 · 10 reps\n\nPlanned\n2\n\nStanding Hip Abduction\n\nSet 2 · 10 reps\n\nPlanned\n3\n\nSupported Single-Leg Balance\n\nSet 1 · 15 sec hold\n\nPlanned\n4\n\nSupported Single-Leg Balance\n\nSet 2 · 15 sec hold\n\nPlanned"
+    },
+    {
+      "step": "patient-tool-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    },
+    {
+      "step": "hub-active-v1",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+            "confirmedAt": "2026-08-31T01:40:46.378Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-balance/programs/program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_E6D14882A7E1464097C61DD88B34C2FF",
+            "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "balance",
+            "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+            "equipment": [
+              "chair",
+              "wall"
+            ],
+            "goals": [
+              "steadier standing balance",
+              "walking confidence"
+            ],
+            "minutesPerDay": 10,
+            "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions."
+          },
+          "clientId": "demo-balance",
+          "currentDraft": null,
+          "displayName": "Demo Client — Balance",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:46.378Z",
+              "detail": "Revision 4 · patient program CP_E6D14882A7E1464097C61DD88B34C2FF."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:27.766Z",
+              "detail": "Supported Single-Leg Balance moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:27.454Z",
+              "detail": "Supported Single-Leg Balance"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:40:22.253Z",
+              "detail": "2 exercises · 3.8 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:40:16.772Z",
+              "detail": "Standing Hip Abduction"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "dashboard-active-isolation",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": true,
+              "itemCount": 2,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "View care plan"
+              },
+              "status": "active",
+              "statusLabel": "Active",
+              "synthetic": true,
+              "updatedAt": "2026-08-31T01:40:46.378Z"
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 1,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "back-navigation-fresh",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+            "confirmedAt": "2026-08-31T01:40:46.378Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-balance/programs/program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_E6D14882A7E1464097C61DD88B34C2FF",
+            "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "balance",
+            "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+            "equipment": [
+              "chair",
+              "wall"
+            ],
+            "goals": [
+              "steadier standing balance",
+              "walking confidence"
+            ],
+            "minutesPerDay": 10,
+            "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions."
+          },
+          "clientId": "demo-balance",
+          "currentDraft": null,
+          "displayName": "Demo Client — Balance",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:46.378Z",
+              "detail": "Revision 4 · patient program CP_E6D14882A7E1464097C61DD88B34C2FF."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:27.766Z",
+              "detail": "Supported Single-Leg Balance moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:27.454Z",
+              "detail": "Supported Single-Leg Balance"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:40:22.253Z",
+              "detail": "2 exercises · 3.8 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:40:16.772Z",
+              "detail": "Standing Hip Abduction"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "native-handle-refresh",
+      "reason": "Client-to-editor navigation changed tool snapshot; refreshed before read, without repeating the UI action."
+    },
+    {
+      "step": "revision-keeps-active-lineage",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+          "clientId": "demo-balance",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+            "estimatedMinutes": 3.6,
+            "itemCount": 2,
+            "revision": 5,
+            "source": "therapist"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "simulated-ui-confirmation-v2",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_8D38F74C0E9347B7BECCB128322307E7",
+          "clientId": "demo-balance",
+          "confirmedCode": "CP_8D38F74C0E9347B7BECCB128322307E7",
+          "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+          "draft": {
+            "draftId": "draft_9fa387a8-c256-49a3-961c-eaef79d36feb",
+            "estimatedMinutes": 3.5,
+            "itemCount": 2,
+            "revision": 6,
+            "source": "therapist"
+          },
+          "minutesPerDay": 10,
+          "patientLabel": "Demo Client — Balance",
+          "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+          "status": "confirmed"
+        }
+      },
+      "visibleText": "Confirmed plan reopened as an editable draft.\n\nPRESCRIPTION DRAFT\n\nTHERAPIST-CREATED\nReview and refine\n\n3.5min\n\nDAILY ESTIMATE\n\nDemo Client — Balance\n\nRevision 6 · 2 movements\n\nAWAITING REVIEW\n5 clinical review notes\n1\n\nStanding Hip Abduction\n\n2 sets × 10 reps · 45s rest · 1× daily\n\nEdit dosage\n2\n\nSupported Single-Leg Balance\n\n2 sets × 10 sec hold · 30s rest · 1× daily\n\nEdit dosage\nConfirm prescription\n\nOnly the treating therapist can complete this action."
+    },
+    {
+      "step": "immutable-history",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_8D38F74C0E9347B7BECCB128322307E7",
+            "confirmedAt": "2026-08-31T01:43:13.283Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-balance/programs/program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "estimatedMinutes": 3.5,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_8D38F74C0E9347B7BECCB128322307E7",
+            "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+            "revision": 6
+          },
+          "caseContext": {
+            "bodyRegion": "balance",
+            "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+            "equipment": [
+              "chair",
+              "wall"
+            ],
+            "goals": [
+              "steadier standing balance",
+              "walking confidence"
+            ],
+            "minutesPerDay": 10,
+            "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions."
+          },
+          "clientId": "demo-balance",
+          "currentDraft": null,
+          "displayName": "Demo Client — Balance",
+          "history": {
+            "entries": [
+              {
+                "code": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+                "confirmedAt": "2026-08-31T01:40:46.378Z",
+                "editorHref": "/therapist/clients/demo-balance/programs/program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+                "itemCount": 2,
+                "kind": "confirmed_version",
+                "patientHref": "/patient/CP_E6D14882A7E1464097C61DD88B34C2FF",
+                "programId": "program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+                "revision": 4
+              }
+            ],
+            "limit": 20,
+            "total": 1,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:43:13.283Z",
+              "detail": "Revision 6 · patient program CP_8D38F74C0E9347B7BECCB128322307E7."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:43:12.947Z",
+              "detail": "Supported Single-Leg Balance"
+            },
+            {
+              "action": "Reopened the confirmed plan for revision.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:42:29.909Z",
+              "detail": "The existing patient link CP_E6D14882A7E1464097C61DD88B34C2FF remains active until a replacement is confirmed."
+            },
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:46.378Z",
+              "detail": "Revision 4 · patient program CP_E6D14882A7E1464097C61DD88B34C2FF."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:40:27.766Z",
+              "detail": "Supported Single-Leg Balance moved to position 2."
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "immutable-patient-links-and-history-navigation",
+      "old": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Balance\n\nTherapist-confirmed revision 4 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nStanding Hip Abduction\n\nStanding with hand support\n\nTarget: 10 reps\n\nHold a stable support and move the leg out to the side without leaning.\nReturn slowly while keeping the toes generally forward.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nStanding Hip Abduction\n\nSet 1 · 10 reps\n\nPlanned\n2\n\nStanding Hip Abduction\n\nSet 2 · 10 reps\n\nPlanned\n3\n\nSupported Single-Leg Balance\n\nSet 1 · 15 sec hold\n\nPlanned\n4\n\nSupported Single-Leg Balance\n\nSet 2 · 15 sec hold\n\nPlanned",
+      "new": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Balance\n\nTherapist-confirmed revision 6 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nStanding Hip Abduction\n\nStanding with hand support\n\nTarget: 10 reps\n\nHold a stable support and move the leg out to the side without leaning.\nReturn slowly while keeping the toes generally forward.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nStanding Hip Abduction\n\nSet 1 · 10 reps\n\nPlanned\n2\n\nStanding Hip Abduction\n\nSet 2 · 10 reps\n\nPlanned\n3\n\nSupported Single-Leg Balance\n\nSet 1 · 10 sec hold\n\nPlanned\n4\n\nSupported Single-Leg Balance\n\nSet 2 · 10 sec hold\n\nPlanned"
+    },
+    {
+      "step": "cross-client-editor-denied",
+      "visibleText": "- banner:\n  - link \"CoachPoint home\":\n    - /url: /\n    - generic: CP\n    - generic: CoachPoint\n    - generic: by Crosspoint\n  - navigation \"Primary navigation\":\n    - link \"Therapist workspace\":\n      - /url: /therapist\n    - link \"Motion lab\":\n      - /url: /motion-lab\n    - link \"WebMCP Challenge\":\n      - /url: https://webmcp.devpost.com/\n- main:\n  - paragraph: Prescription unavailable\n  - heading \"This synthetic program could not be found.\" [level=1]\n  - paragraph: Return to the client record and open an existing program or create a new draft.\n  - link \"Back to client\":\n    - /url: /therapist/clients/demo-knee\n    - text: Back to client\n- contentinfo:\n  - paragraph: Open-source WebMCP Challenge project by Crosspoint.\n  - paragraph: Educational demonstration only. Not medical diagnosis or a substitute for clinician instructions.\n- alert",
+      "tools": "No WebMCP tools are available in this document."
+    },
+    {
+      "step": "landing-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    }
+  ],
+  "context": {
+    "activeConfirmedVersion": null,
+    "caseContext": {
+      "bodyRegion": "balance",
+      "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+      "equipment": [
+        "chair",
+        "wall"
+      ],
+      "goals": [
+        "steadier standing balance",
+        "walking confidence"
+      ],
+      "minutesPerDay": 10,
+      "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions."
+    },
+    "clientId": "demo-balance",
+    "currentDraft": null,
+    "displayName": "Demo Client — Balance",
+    "history": {
+      "entries": [],
+      "limit": 20,
+      "total": 0,
+      "truncated": false
+    },
+    "recentActivity": [],
+    "status": "no-plan",
+    "statusLabel": "Ready for a prescription",
+    "synthetic": true,
+    "totalPrograms": 0
+  },
+  "editorUrl": "http://127.0.0.1:44153/therapist/clients/demo-balance/programs/program_1de72b6b-2ccd-4ff5-b824-966a52574c8c",
+  "chosen": [
+    {
+      "bodyRegion": "balance",
+      "coachingMode": "timer",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "holdSeconds": 20,
+        "restSeconds": 30,
+        "sets": 2
+      },
+      "difficulty": 3,
+      "equipment": [
+        "chair"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "balance",
+        "single-leg control",
+        "fall-risk management"
+      ],
+      "id": "single-leg-balance",
+      "name": "Supported Single-Leg Balance"
+    },
+    {
+      "bodyRegion": "hip",
+      "coachingMode": "timer",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "reps": 10,
+        "restSeconds": 45,
+        "sets": 2
+      },
+      "difficulty": 2,
+      "equipment": [
+        "chair"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "hip strength",
+        "standing control",
+        "balance"
+      ],
+      "id": "standing-hip-abduction",
+      "name": "Standing Hip Abduction"
+    }
+  ],
+  "input": {
+    "expectedDraftRevision": 1,
+    "caseContext": {
+      "bodyRegion": "balance",
+      "diagnosis": "Synthetic balance confidence and lower-limb endurance case",
+      "equipment": [
+        "chair",
+        "wall"
+      ],
+      "goals": [
+        "steadier standing balance",
+        "walking confidence"
+      ],
+      "minutesPerDay": 10,
+      "notes": "Synthetic competition case. Use stable support and therapist-selected safety progressions.",
+      "patientLabel": "Demo Client — Balance"
+    },
+    "items": [
+      {
+        "exerciseId": "single-leg-balance",
+        "frequencyPerDay": 1,
+        "holdSeconds": 20,
+        "restSeconds": 30,
+        "sets": 2
+      },
+      {
+        "exerciseId": "standing-hip-abduction",
+        "frequencyPerDay": 1,
+        "reps": 10,
+        "restSeconds": 45,
+        "sets": 2
+      }
+    ]
+  },
+  "firstCode": "CP_E6D14882A7E1464097C61DD88B34C2FF",
+  "firstPatientUrl": "http://127.0.0.1:44153/patient/CP_E6D14882A7E1464097C61DD88B34C2FF",
+  "secondCode": "CP_8D38F74C0E9347B7BECCB128322307E7",
+  "secondPatientUrl": "http://127.0.0.1:44153/patient/CP_8D38F74C0E9347B7BECCB128322307E7",
+  "runtime": {
+    "brokenImages": 0,
+    "cjk": false,
+    "scrollWidth": 1265,
+    "viewport": {
+      "height": 720,
+      "width": 1265
+    }
+  },
+  "console": [],
+  "completedAt": "2026-08-31T01:43:36.647Z",
+  "result": "passed",
+  "screenshots": [
+    "old-patient-viewport.png",
+    "new-patient-viewport.png",
+    "history-viewport.png"
+  ]
+}

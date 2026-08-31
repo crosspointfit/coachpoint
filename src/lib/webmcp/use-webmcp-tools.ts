@@ -28,6 +28,12 @@ const INITIAL_STATE: WebMcpRegistrationState = {
   toolNames: [],
 };
 
+interface OwnedRegistrationState {
+  descriptors: readonly WebMcpToolDescriptor[] | null;
+  signal: AbortSignal | null;
+  value: WebMcpRegistrationState;
+}
+
 /**
  * Registers route-scoped tools against `document.modelContext` and aborts the
  * shared registration owner on React remount or route unmount.
@@ -38,14 +44,18 @@ const INITIAL_STATE: WebMcpRegistrationState = {
 export function useWebMcpTools(
   descriptors: readonly WebMcpToolDescriptor[],
 ): WebMcpRegistrationState {
-  const [state, setState] = useState<WebMcpRegistrationState>(INITIAL_STATE);
+  const [state, setState] = useState<OwnedRegistrationState>({
+    descriptors: null,
+    signal: null,
+    value: INITIAL_STATE,
+  });
 
   useEffect(() => {
     let active = true;
     let registration: WebMcpRegistration | null = null;
 
     void Promise.resolve().then(async () => {
-      if (!active) {
+      if (!active || descriptors.length === 0) {
         return;
       }
 
@@ -55,24 +65,40 @@ export function useWebMcpTools(
           : resolveDocumentModelContext(document);
 
       if (!modelContext) {
-        setState({ status: "unsupported", error: null, toolNames: [] });
+        setState({
+          descriptors,
+          signal: null,
+          value: { status: "unsupported", error: null, toolNames: [] },
+        });
         return;
       }
 
-      setState({ status: "registering", error: null, toolNames: [] });
       registration = startWebMcpRegistration(modelContext, descriptors);
+      setState({
+        descriptors,
+        signal: registration.signal,
+        value: { status: "registering", error: null, toolNames: [] },
+      });
 
       try {
         const toolNames = await registration.ready;
         if (active) {
-          setState({ status: "ready", error: null, toolNames });
+          setState({
+            descriptors,
+            signal: registration.signal,
+            value: { status: "ready", error: null, toolNames },
+          });
         }
       } catch {
         if (active) {
           setState({
-            status: "error",
-            error: "WebMCP tool registration failed.",
-            toolNames: [],
+            descriptors,
+            signal: registration.signal,
+            value: {
+              status: "error",
+              error: "WebMCP tool registration failed.",
+              toolNames: [],
+            },
           });
         }
       }
@@ -84,5 +110,15 @@ export function useWebMcpTools(
     };
   }, [descriptors]);
 
-  return state;
+  // Hide the old route's ready state during the render before its effect is
+  // replaced. Empty/pre-hydration tool sets never advertise agent readiness.
+  if (
+    descriptors.length === 0 ||
+    state.descriptors !== descriptors ||
+    (state.value.status !== "error" && state.signal?.aborted)
+  ) {
+    return INITIAL_STATE;
+  }
+
+  return state.value;
 }

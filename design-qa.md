@@ -74,3 +74,17 @@
 - Browser checks covered v1 workspace/registry migration, three-client rendering, client detail, immutable program history, named editor deep links, new-program creation, fresh reload recovery, fail-closed cross-client links, Client A/B isolation, four route-scoped editor tools, stale-agent revision rejection, durable agent writes, editor-tool cleanup on dashboard return, English-only copy, zero horizontal overflow at 375 px, zero broken images, and a clean console.
 
 final result: passed
+
+## Phase 4.5C–D route-tool acceptance
+
+- Read-only readiness badges reuse existing CoachPoint tokens on the dashboard
+  and client hub. The active plan now visibly shows its therapist confirmation
+  timestamp, matching the read-tool payload.
+- Native three-run evidence and unstitched desktop/mobile screenshots are in
+  `docs/phase-4.5-acceptance.md` and
+  `output/playwright/phase-4.5-acceptance-2026-08-31/`.
+- One ordinary-browser overflow heuristic flagged only the clipped 1×1 search
+  label; directed measurement confirmed no document overflow. Native mobile
+  layout/scroll widths both equal 360 within the 375px viewport.
+- Full-page screenshot stitching artifacts were excluded from final evidence;
+  the retained viewport images were visually inspected.

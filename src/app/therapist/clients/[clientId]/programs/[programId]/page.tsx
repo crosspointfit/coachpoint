@@ -19,5 +19,11 @@ export default async function PrescriptionEditorPage({
   const { clientId, programId } = await params;
   if (!getSyntheticClient(clientId)) notFound();
 
-  return <TherapistWorkspace clientId={clientId} programId={programId} />;
+  return (
+    <TherapistWorkspace
+      key={`${clientId}/${programId}`}
+      clientId={clientId}
+      programId={programId}
+    />
+  );
 }

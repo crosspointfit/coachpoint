@@ -491,7 +491,9 @@ export function getClient(
   clientId: string,
   options: CaseloadAccessOptions = {},
 ): SyntheticClient | null {
-  const client = readCaseload(options).clientsById[clientId];
+  const clients = readCaseload(options).clientsById;
+  if (!Object.hasOwn(clients, clientId)) return null;
+  const client = clients[clientId];
   return client ? cloneWorkspaceValue(client) : null;
 }
 
@@ -528,7 +530,9 @@ export function getProgram(
   programId: string,
   options: CaseloadAccessOptions = {},
 ): TherapistProgramRecord | null {
-  const program = readCaseload(options).programsById[programId];
+  const programs = readCaseload(options).programsById;
+  if (!Object.hasOwn(programs, programId)) return null;
+  const program = programs[programId];
   return program ? cloneProgramRecord(program) : null;
 }
 
@@ -536,7 +540,9 @@ export function readProgramWorkspace(
   programId: string,
   options: CaseloadAccessOptions = {},
 ): TherapistWorkspaceSnapshot | null {
-  const program = readCaseload(options).programsById[programId];
+  const programs = readCaseload(options).programsById;
+  if (!Object.hasOwn(programs, programId)) return null;
+  const program = programs[programId];
   return program ? cloneWorkspaceSnapshot(program.workspace) : null;
 }
 
@@ -545,7 +551,9 @@ export function readProgramWorkspaceForClient(
   programId: string,
   options: CaseloadAccessOptions = {},
 ): TherapistWorkspaceSnapshot | null {
-  const program = readCaseload(options).programsById[programId];
+  const programs = readCaseload(options).programsById;
+  if (!Object.hasOwn(programs, programId)) return null;
+  const program = programs[programId];
   return program?.clientId === clientId && program.status !== "archived"
     ? cloneWorkspaceSnapshot(program.workspace)
     : null;

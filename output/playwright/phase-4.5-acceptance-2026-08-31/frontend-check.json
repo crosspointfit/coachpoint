@@ -1,0 +1,18 @@
+{
+  "target": "http://127.0.0.1:44152/therapist",
+  "ok": true,
+  "issues": [
+    {
+      "category": "Layout",
+      "severity": "warning",
+      "message": "1 element(s) overflow horizontally",
+      "detail": "<span.sr-only> overflows by 172px"
+    }
+  ],
+  "passed": [
+    "No console errors",
+    "All resources loaded",
+    "All images loaded",
+    "Basic a11y checks pass"
+  ]
+}

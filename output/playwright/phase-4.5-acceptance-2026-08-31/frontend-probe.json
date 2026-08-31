@@ -1,0 +1,14 @@
+{
+  "viewportWidth": 1280,
+  "documentWidth": 1280,
+  "manualMode": true,
+  "hiddenLabels": [
+    {
+      "text": "Search synthetic clients",
+      "clip": "auto",
+      "overflow": "hidden",
+      "width": "1px",
+      "height": "1px"
+    }
+  ]
+}

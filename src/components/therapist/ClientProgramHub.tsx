@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -20,11 +20,18 @@ import type {
   TherapistProgramRecord,
 } from "@/domain/caseload";
 import {
-  createProgramForClient,
-  getClient,
-  listProgramsForClient,
-  readCaseload,
-} from "@/lib/caseloadStorage";
+  selectClientView,
+  selectClientProgramView,
+  type ClientProgramView,
+} from "@/domain/caseload-views";
+import { createProgramForClient } from "@/lib/caseloadStorage";
+import { useCaseloadSnapshot } from "@/lib/use-caseload-snapshot";
+import {
+  createClientToolDescriptors,
+  useWebMcpTools,
+  type WebMcpToolDescriptor,
+} from "@/lib/webmcp";
+import WebMcpStatusBadge from "./WebMcpStatusBadge";
 
 interface ClientProgramHubProps {
   initialClient: SyntheticClient;
@@ -118,92 +125,40 @@ export default function ClientProgramHub({
   initialClient,
 }: ClientProgramHubProps) {
   const router = useRouter();
-  const [client, setClient] = useState(initialClient);
-  const [programs, setPrograms] = useState<TherapistProgramRecord[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const snapshot = useCaseloadSnapshot();
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
-
+  const view = useMemo(
+    () => snapshot ? selectClientView(snapshot, initialClient.id) : null,
+    [snapshot, initialClient.id],
+  );
+  const hydrated = view !== null;
+  const visibleView = useRef<ClientProgramView | null>(null);
   useEffect(() => {
-    const hydrationTimer = window.setTimeout(() => {
-      readCaseload();
-      setClient(getClient(initialClient.id) ?? initialClient);
-      setPrograms(listProgramsForClient(initialClient.id));
-      setHydrated(true);
-    }, 0);
-
-    return () => window.clearTimeout(hydrationTimer);
-  }, [initialClient]);
-
-  const draftProgram =
-    programs.find((program) => program.status === "draft") ?? null;
-  const activeSelection = useMemo(
-    () =>
-      programs
-        .filter((program) => program.status !== "archived")
-        .flatMap((program) =>
-          program.confirmedCodes.flatMap((code) => {
-            const version = program.confirmedVersions[code];
-            return version ? [{ program, version }] : [];
-          }),
-        )
-        .sort((a, b) =>
-          b.version.confirmedAt.localeCompare(a.version.confirmedAt),
-        )[0] ?? null,
-    [programs],
-  );
-  const activeProgram = activeSelection?.program ?? null;
-  const activeConfirmedProgram = activeSelection?.version ?? null;
-  const historyPrograms = programs.filter(
-    (program) =>
-      program.programId !== draftProgram?.programId &&
-      program.programId !== activeProgram?.programId,
-  );
-  const previousConfirmedVersions = useMemo(
-    () =>
-      programs
-        .flatMap((program) =>
-          program.confirmedCodes.flatMap((code) => {
-            const version = program.confirmedVersions[code];
-            return version ? [{ program, version }] : [];
-          }),
-        )
-        .filter(
-          ({ version }) => version.code !== activeConfirmedProgram?.code,
-        )
-        .sort((a, b) =>
-          b.version.confirmedAt.localeCompare(a.version.confirmedAt),
-        ),
-    [activeConfirmedProgram?.code, programs],
-  );
-  const nonVersionHistoryPrograms = historyPrograms.filter(
-    (program) => program.confirmedCodes.length === 0,
-  );
-  const historyCount =
-    previousConfirmedVersions.length + nonVersionHistoryPrograms.length;
-
-  const recentActivity = useMemo(
-    () =>
-      programs
-        .flatMap((program) =>
-          program.workspace.activities.map((activity) => ({
-            ...activity,
-            programId: program.programId,
-          })),
-        )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 5),
-    [programs],
-  );
-
-  const clientStatus = draftProgram
-    ? draftProgram.workspace.draft?.source === "agent" &&
-      programItemCount(draftProgram) > 0
-      ? "Agent draft needs review"
-      : "Draft in progress"
-    : activeProgram
-      ? "Active care plan"
-      : "Ready for a prescription";
+    visibleView.current = view;
+    return () => { visibleView.current = null; };
+  }, [view]);
+  const [descriptors, setDescriptors] = useState<readonly WebMcpToolDescriptor[]>([]);
+  useEffect(() => {
+    if (!hydrated) return;
+    let active = true;
+    const tools = createClientToolDescriptors(initialClient.id, () => visibleView.current);
+    void Promise.resolve().then(() => { if (active) setDescriptors(tools); });
+    return () => { active = false; };
+  }, [hydrated, initialClient.id]);
+  const webMcp = useWebMcpTools(descriptors);
+  const {
+    client,
+    programs,
+    draftProgram,
+    activeProgram,
+    activeConfirmedProgram,
+    previousConfirmedVersions,
+    nonVersionHistoryPrograms,
+    historyCount,
+    recentActivity,
+    clientStatusLabel: clientStatus,
+  } = view ?? selectClientProgramView(initialClient, []);
 
   const startPrescription = () => {
     if (draftProgram) {
@@ -272,6 +227,7 @@ export default function ClientProgramHub({
                   <span className="rounded-full border border-primary-100 bg-[#F3FAFD] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.07em] text-primary-700">
                     Synthetic demo
                   </span>
+                  <WebMcpStatusBadge state={webMcp} />
                 </div>
                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
                   {context.diagnosis}
@@ -621,6 +577,12 @@ export default function ClientProgramHub({
                       </div>
                       <p className="mt-4 text-xs text-slate-500">
                         {activeConfirmedProgram.items.length} movements · {activeConfirmedProgram.estimatedMinutes.toFixed(1)} minutes · revision {activeConfirmedProgram.revision}
+                      </p>
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        Confirmed by therapist · {" "}
+                        <time dateTime={activeConfirmedProgram.confirmedAt}>
+                          {stableTime(activeConfirmedProgram.confirmedAt)}
+                        </time>
                       </p>
                       <div className="mt-5 flex flex-wrap gap-2">
                         <Link

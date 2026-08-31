@@ -9,25 +9,37 @@ The durable implementation plan is in
 
 ## Implemented therapist flow
 
-1. A therapist enters a synthetic case, time budget, equipment, and any
+1. The therapist opens `/therapist`, chooses a synthetic client, and opens a
+   new or existing prescription from that client's program hub.
+2. The therapist enters a synthetic case, time budget, equipment, and any
    procedure-specific constraints.
-2. The therapist or agent searches a curated, demo-only exercise catalog.
-3. The agent can inspect precautions and create a visible draft.
-4. The therapist reorders exercises and edits dosage in the same UI.
+3. The therapist or agent searches the demo-only catalog and inspects precautions.
+4. The agent creates a visible draft; the therapist edits dosage and ordering.
 5. Only the therapist UI can confirm the prescription and create the anonymous
    patient link.
-6. Human, agent, and system activity remains visibly attributed.
+6. Client detail shows the active version, earlier immutable versions and
+   attributed activity. Old patient links keep their original dosage.
 
-The three route-scoped WebMCP tools are:
+Six WebMCP tools are split across three leaf-route surfaces:
 
-| Tool | Effect |
-| --- | --- |
-| `search_exercises` | Read-only structured search of the curated catalog. |
-| `get_exercise_details` | Read-only details, timing, precautions, and contraindications. |
-| `draft_program` | Creates a visible draft; never confirms or activates it. |
+| Route | Tool | Effect |
+| --- | --- | --- |
+| `/therapist` | `list_clients` | Reads the currently visible filtered directory; at most three synthetic clients. |
+| `/therapist/clients/[clientId]` | `get_client_summary` | Reads visible context, current/active plans, up to 20 history entries and five recent activities. |
+| Program editor | `get_program_editor_state` | Reads the route-bound draft revision and confirmation state. |
+| Program editor | `search_exercises` | Read-only structured catalog search. |
+| Program editor | `get_exercise_details` | Read-only timing, precautions and contraindications. |
+| Program editor | `draft_program` | Revision-guarded visible draft only; never confirms or activates it. |
 
-Navigating away from `/therapist` aborts the shared registration owner and
-removes all three tools.
+The editor route is
+`/therapist/clients/[clientId]/programs/[programId]`. Both new read tools accept
+`{}` only: the page, not a supplied identifier, owns their context. They read
+the same hydrated projection as the UI without seeding or writing storage.
+
+Navigation aborts the previous registration owner and its in-flight calls.
+Changing filters or draft dosage does not re-register the route's tools.
+Invalid/cross-client editor routes, the landing page and patient routes expose
+no therapist tools. There is no confirmation, activation or destructive tool.
 
 ## Implemented patient fallback flow
 
@@ -64,9 +76,16 @@ WebMCP orchestration is added.
 
 ## Suggested site-tools prompt
 
+The dashboard can answer "Which synthetic clients need review?" using
+`list_clients`. Open a client to read `get_client_summary`, then use **New
+prescription** or **Continue draft** to enter that client's editor.
+
+In the shoulder editor:
+
 > Shoulder impingement, six weeks post-op, 15 minutes per day. Search the
 > catalog for assisted shoulder mobility using a stick, inspect suitable
-> options, then create a two-exercise draft for my review. Use only synthetic
+> options, read the current draft revision, then create a two-exercise draft
+> for my review. Use only synthetic
 > case information and the week-six demo protocol shown on the page.
 
 ## Development
@@ -96,21 +115,30 @@ The current therapist checkpoint has passed:
 - npm production dependency audit
 - Headless runtime, network, image, layout, and basic accessibility checks
 - Manual add, edit/reorder, confirm, patient-link, and local persistence probes
-- Native Codex in-app Browser discovery and invocation of all three site tools
+- Native Codex in-app Browser discovery and invocation of all six route tools
 - Route cleanup showing no WebMCP tools on the landing page
 - Same-browser therapist confirmation through patient-session completion
 - Patient pain-gate and in-app Browser refresh-recovery probes
 - Motion-engine unit tests, deterministic three-repetition browser replay, and
   self-hosted MediaPipe GPU runtime/model load
+- Phase 4.5: three consecutive isolated, native-WebMCP workflows on one
+  production build, with simulated therapist UI edits/confirmation, immutable
+  patient links, client isolation, reload and back/forward recovery
+
+See [Phase 4.5 acceptance evidence](./docs/phase-4.5-acceptance.md). These are
+synthetic software acceptance tests, not clinician sign-off or deployed-origin
+verification. The ordinary-browser check also confirms manual mode without WebMCP.
 
 ## Project structure
 
 | Path | Purpose |
 | --- | --- |
 | `src/domain/` | Curated catalog, safety boundaries, duration and draft validation. |
+| `src/domain/caseload-views.ts` | Shared UI selectors and allowlisted read-tool projections. |
 | `src/components/therapist/` | Manual shared therapist workspace. |
 | `src/lib/webmcp/` | Direct registration, schemas, execution boundaries, React lifecycle. |
-| `src/lib/therapistStorage.ts` | Versioned browser persistence for synthetic demo state. |
+| `src/lib/caseloadStorage.ts` | V2 client/program persistence, migration and immutable versions. |
+| `src/lib/therapistStorage.ts` | Legacy compatibility and same-browser patient version lookup. |
 | `tests/` | Deterministic domain and WebMCP contract tests. |
 
 ## Challenge provenance

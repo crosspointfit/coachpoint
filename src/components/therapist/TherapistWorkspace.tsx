@@ -27,6 +27,7 @@ import type {
   ProgramDraft,
   ProgramItem,
 } from "@/domain/types";
+import { selectConfirmedVersions } from "@/domain/caseload-views";
 import {
   createTherapistToolDescriptors,
   useWebMcpTools,
@@ -151,6 +152,9 @@ export default function TherapistWorkspace({
   const [hydrated, setHydrated] = useState(false);
   const [hydratedScope, setHydratedScope] = useState<string | null>(null);
   const [programMissing, setProgramMissing] = useState(false);
+  const workspaceScope = programId
+    ? `${clientId ?? "missing-client"}/${programId}`
+    : "legacy-workspace";
 
   const appendActivity = useCallback(
     (actor: ActivityActor, action: string, detail: string) => {
@@ -192,16 +196,15 @@ export default function TherapistWorkspace({
           ),
         ]);
       }
-      setHydratedScope(programId ?? "legacy-workspace");
+      setHydratedScope(workspaceScope);
       setHydrated(true);
     }, 0);
 
     return () => window.clearTimeout(hydrationTimer);
-  }, [clientId, programId]);
+  }, [clientId, programId, workspaceScope]);
 
   useEffect(() => {
-    const expectedScope = programId ?? "legacy-workspace";
-    if (!hydrated || hydratedScope !== expectedScope) return;
+    if (!hydrated || hydratedScope !== workspaceScope) return;
     const snapshot = {
       version: 1,
       caseContext,
@@ -226,12 +229,13 @@ export default function TherapistWorkspace({
     hydratedScope,
     programId,
     programMissing,
+    workspaceScope,
   ]);
 
   const toolsEnabled =
     hydrated &&
     !programMissing &&
-    hydratedScope === (programId ?? "legacy-workspace");
+    hydratedScope === workspaceScope;
 
   const persistWorkspaceNow = useCallback(
     (snapshot: CaseloadWorkspaceSnapshot): boolean => {
@@ -347,17 +351,8 @@ export default function TherapistWorkspace({
             };
           }
           const activeConfirmedVersion = clientId
-            ? listProgramsForClient(clientId)
-                .filter((program) => program.status !== "archived")
-                .flatMap((program) =>
-                  program.confirmedCodes.flatMap((code) => {
-                    const version = program.confirmedVersions[code];
-                    return version ? [version] : [];
-                  }),
-                )
-                .sort((a, b) =>
-                  b.confirmedAt.localeCompare(a.confirmedAt),
-                )[0]
+            ? selectConfirmedVersions(listProgramsForClient(clientId))
+                .find(({ program }) => program.status !== "archived")?.version
             : undefined;
           return {
             clientId,
@@ -381,7 +376,8 @@ export default function TherapistWorkspace({
             activeConfirmedCode: activeConfirmedVersion?.code,
           };
         },
-        draftProgram: async (input: DraftProgramInput) => {
+        draftProgram: async (input: DraftProgramInput, { signal }) => {
+          signal.throwIfAborted();
           if (
             !input?.caseContext ||
             typeof input.caseContext !== "object" ||
@@ -443,6 +439,8 @@ export default function TherapistWorkspace({
             confirmedProgram: null,
             activities: nextActivities,
           } as const;
+          // Cancellation must win before the atomic client/program commit.
+          signal.throwIfAborted();
           const persisted =
             clientId && programId
               ? writeClientProgramWorkspace(

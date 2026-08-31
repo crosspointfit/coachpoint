@@ -23,5 +23,5 @@ export default async function TherapistClientPage({
 
   if (!client) notFound();
 
-  return <ClientProgramHub initialClient={client} />;
+  return <ClientProgramHub key={clientId} initialClient={client} />;
 }

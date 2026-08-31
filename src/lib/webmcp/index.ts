@@ -3,6 +3,12 @@ export {
   createToolExecutor,
 } from "./execution.ts";
 export {
+  createDashboardToolDescriptors,
+  createClientToolDescriptors,
+  listClientsSchema,
+  getClientSummarySchema,
+} from "./caseload-tools.ts";
+export {
   resolveDocumentModelContext,
   startWebMcpRegistration,
   type WebMcpRegistration,

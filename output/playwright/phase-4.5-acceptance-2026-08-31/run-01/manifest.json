@@ -1,0 +1,963 @@
+{
+  "run": 1,
+  "origin": "http://127.0.0.1:44151",
+  "clientId": "demo-shoulder",
+  "buildId": "rZG2TXCMVZTwzvGicjIA7",
+  "mode": "native WebMCP with simulated therapist UI actions",
+  "startedAt": "2026-08-31T01:30:33.787Z",
+  "steps": [
+    {
+      "step": "fresh-dashboard",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 0,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "client-context",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": null,
+          "caseContext": {
+            "bodyRegion": "shoulder",
+            "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+            "equipment": [
+              "wall",
+              "stick",
+              "table"
+            ],
+            "goals": [
+              "comfortable shoulder mobility",
+              "daily activity"
+            ],
+            "minutesPerDay": 15,
+            "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+            "postOpWeeks": 6,
+            "procedure": "Therapist-entered synthetic demo procedure",
+            "protocol": "Week-six synthetic demo protocol"
+          },
+          "clientId": "demo-shoulder",
+          "currentDraft": null,
+          "displayName": "Demo Client — Shoulder",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [],
+          "status": "no-plan",
+          "statusLabel": "Ready for a prescription",
+          "synthetic": true,
+          "totalPrograms": 0
+        }
+      }
+    },
+    {
+      "step": "editor-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-shoulder",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_1467d1b6-d5fd-498a-863d-640eac30ad82",
+            "estimatedMinutes": 0,
+            "itemCount": 0,
+            "revision": 1,
+            "source": "therapist"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "catalog-search",
+      "result": {
+        "ok": true,
+        "value": {
+          "results": [
+            {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "holdSeconds": 30,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 1,
+              "equipment": [
+                "table"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "gentle mobility",
+                "relaxation",
+                "supported movement"
+              ],
+              "id": "shoulder-pendulum",
+              "name": "Shoulder Pendulum"
+            },
+            {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 8,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 1,
+              "equipment": [
+                "stick"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "assisted mobility",
+                "shoulder flexion",
+                "range of motion"
+              ],
+              "id": "shoulder-flexion-stick",
+              "name": "Assisted Shoulder Flexion with Stick"
+            },
+            {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 8,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 1,
+              "equipment": [
+                "stick",
+                "towel"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "assisted mobility",
+                "external rotation",
+                "range of motion"
+              ],
+              "id": "shoulder-external-rotation-stick",
+              "name": "Assisted Shoulder External Rotation with Stick"
+            },
+            {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 8,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 2,
+              "equipment": [
+                "wall"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "active-assisted mobility",
+                "shoulder flexion",
+                "movement control"
+              ],
+              "id": "wall-slide-flexion",
+              "name": "Wall Slide Shoulder Flexion"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "step": "exercise-details",
+      "results": [
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "contraindications": [
+                "Do not use after surgery without a documented procedure and therapist-approved protocol."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "reps": 8,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 1,
+              "equipment": [
+                "stick"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "assisted mobility",
+                "shoulder flexion",
+                "range of motion"
+              ],
+              "id": "shoulder-flexion-stick",
+              "instructions": [
+                "Use the other arm to guide the stick upward through a comfortable range.",
+                "Move slowly and return with control."
+              ],
+              "name": "Assisted Shoulder Flexion with Stick",
+              "phaseTags": [
+                "shoulder-assisted-motion",
+                "post-operative-demo"
+              ],
+              "position": "Supine",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "Stay within the range specifically cleared by the therapist."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        },
+        {
+          "ok": true,
+          "value": {
+            "exercise": {
+              "bodyRegion": "shoulder",
+              "coachingMode": "timer",
+              "contraindications": [
+                "Post-operative use requires the procedure and therapist-approved protocol to be documented."
+              ],
+              "defaultDosage": {
+                "frequencyPerDay": 1,
+                "holdSeconds": 30,
+                "restSeconds": 30,
+                "sets": 2
+              },
+              "difficulty": 1,
+              "equipment": [
+                "table"
+              ],
+              "estimatedMinutes": 3,
+              "goals": [
+                "gentle mobility",
+                "relaxation",
+                "supported movement"
+              ],
+              "id": "shoulder-pendulum",
+              "instructions": [
+                "Support the body with the other arm and let the working arm relax.",
+                "Use gentle body movement to make a small, comfortable pendulum motion."
+              ],
+              "name": "Shoulder Pendulum",
+              "phaseTags": [
+                "shoulder-early-mobility",
+                "post-operative-demo"
+              ],
+              "position": "Standing with trunk supported",
+              "precautions": [
+                "Competition demo only. A licensed therapist must verify suitability and dosage before use.",
+                "The arm should remain relaxed; do not force the circle size."
+              ],
+              "reviewStatus": "demo-only"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "step": "native-draft",
+      "result": {
+        "ok": true,
+        "value": {
+          "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+          "estimatedMinutes": 3.6,
+          "itemCount": 2,
+          "status": "awaiting_therapist_review",
+          "warnings": [
+            "Agent draft — therapist review required.",
+            "Competition demo catalog only — therapist review is required before confirmation.",
+            "Assisted Shoulder Flexion with Stick: Stay within the range specifically cleared by the therapist."
+          ]
+        }
+      }
+    },
+    {
+      "step": "stale-revision-blocked",
+      "result": {
+        "errors": [
+          {
+            "code": "draft_revision_conflict",
+            "field": "expectedDraftRevision",
+            "message": "The editor is now at revision 2. Read the visible draft again before replacing it.",
+            "recoverable": true
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "step": "simulated-therapist-edits",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-shoulder",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "awaiting_therapist_review"
+        }
+      },
+      "visibleText": "PRESCRIPTION DRAFT\n\nAGENT-CREATED\nReview and refine\n\n3.3min\n\nDAILY ESTIMATE\n\nDemo Client — Shoulder\n\nRevision 4 · 2 movements\n\nAWAITING REVIEW\n5 clinical review notes\n1\n\nShoulder Pendulum\n\n2 sets × 30 sec hold · 30s rest · 1× daily\n\nEdit dosage\n2\n\nAssisted Shoulder Flexion with Stick\n\n2 sets × 6 reps · 30s rest · 1× daily\n\nEdit dosage\nConfirm prescription\n\nOnly the treating therapist can complete this action."
+    },
+    {
+      "step": "reload-preserves-draft",
+      "state": {
+        "ok": true,
+        "value": {
+          "clientId": "demo-shoulder",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "simulated-ui-confirmation-v1",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_F3B2B91B894E4A679E340249A75B832F",
+          "clientId": "demo-shoulder",
+          "confirmedCode": "CP_F3B2B91B894E4A679E340249A75B832F",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "revision": 4,
+            "source": "agent"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "confirmed"
+        }
+      }
+    },
+    {
+      "step": "patient-v1",
+      "url": "http://127.0.0.1:44151/patient/CP_F3B2B91B894E4A679E340249A75B832F",
+      "visibleText": "- banner:\n  - link \"CoachPoint home\":\n    - /url: /\n    - generic: CP\n    - generic: CoachPoint\n    - generic: by Crosspoint\n  - navigation \"Primary navigation\":\n    - link \"Therapist workspace\":\n      - /url: /therapist\n    - link \"Motion lab\":\n      - /url: /motion-lab\n    - link \"WebMCP Challenge\":\n      - /url: https://webmcp.devpost.com/\n- main:\n  - paragraph: Patient session · timer/manual fallback\n  - heading \"Demo Client — Shoulder\" [level=1]\n  - paragraph: Therapist-confirmed revision 4 · camera coaching begins in the next phase.\n  - paragraph: 0/4\n  - paragraph: sets resolved\n  - button \"Restart demo\"\n  - paragraph: Up next · set 1\n  - heading \"Shoulder Pendulum\" [level=2]\n  - paragraph: Standing with trunk supported\n  - paragraph: \"Target: 30 sec hold\"\n  - list:\n    - listitem: Support the body with the other arm and let the working arm relax.\n    - listitem: Use gentle body movement to make a small, comfortable pendulum motion.\n  - button \"Start this set\"\n  - button \"Skip exercise\"\n  - text: Visible skip reason\n  - textbox \"Visible skip reason\": Patient chose to skip this exercise.\n  - paragraph: Stop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n  - button \"Stop session\"\n  - button \"Finish session\" [disabled]\n  - complementary:\n    - paragraph: Today’s sets\n    - heading \"Prescription queue\" [level=2]\n    - list:\n      - generic: \"1\"\n      - paragraph: Shoulder Pendulum\n      - paragraph: Set 1 · 30 sec hold\n      - generic: planned\n      - generic: \"2\"\n      - paragraph: Shoulder Pendulum\n      - paragraph: Set 2 · 30 sec hold\n      - generic: planned\n      - generic: \"3\"\n      - paragraph: Assisted Shoulder Flexion with Stick\n      - paragraph: Set 1 · 6 reps\n      - generic: planned\n      - generic: \"4\"\n      - paragraph: Assisted Shoulder Flexion with Stick\n      - paragraph: Set 2 · 6 reps\n      - generic: planned\n- contentinfo:\n  - paragraph: Open-source WebMCP Challenge project by Crosspoint.\n  - paragraph: Educational demonstration only. Not medical diagnosis or a substitute for clinician instructions.\n- alert"
+    },
+    {
+      "step": "patient-tool-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    },
+    {
+      "step": "hub-active-v1",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_F3B2B91B894E4A679E340249A75B832F",
+            "confirmedAt": "2026-08-31T01:32:38.140Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-shoulder/programs/program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_F3B2B91B894E4A679E340249A75B832F",
+            "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "shoulder",
+            "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+            "equipment": [
+              "wall",
+              "stick",
+              "table"
+            ],
+            "goals": [
+              "comfortable shoulder mobility",
+              "daily activity"
+            ],
+            "minutesPerDay": 15,
+            "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+            "postOpWeeks": 6,
+            "procedure": "Therapist-entered synthetic demo procedure",
+            "protocol": "Week-six synthetic demo protocol"
+          },
+          "clientId": "demo-shoulder",
+          "currentDraft": null,
+          "displayName": "Demo Client — Shoulder",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:38.140Z",
+              "detail": "Revision 4 · patient program CP_F3B2B91B894E4A679E340249A75B832F."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:06.722Z",
+              "detail": "Assisted Shoulder Flexion with Stick moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:06.401Z",
+              "detail": "Assisted Shoulder Flexion with Stick"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:31:35.567Z",
+              "detail": "2 exercises · 3.6 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:31:32.091Z",
+              "detail": "Shoulder Pendulum"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "dashboard-active-isolation",
+      "result": {
+        "ok": true,
+        "value": {
+          "clients": [
+            {
+              "clientHref": "/therapist/clients/demo-balance",
+              "clientId": "demo-balance",
+              "displayName": "Demo Client — Balance",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-balance",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-knee",
+              "clientId": "demo-knee",
+              "displayName": "Demo Client — Knee",
+              "hasActiveProgram": false,
+              "itemCount": 0,
+              "nextStep": {
+                "href": "/therapist/clients/demo-knee",
+                "label": "Open client"
+              },
+              "status": "no-plan",
+              "statusLabel": "No plan",
+              "synthetic": true,
+              "updatedAt": null
+            },
+            {
+              "clientHref": "/therapist/clients/demo-shoulder",
+              "clientId": "demo-shoulder",
+              "displayName": "Demo Client — Shoulder",
+              "hasActiveProgram": true,
+              "itemCount": 2,
+              "nextStep": {
+                "href": "/therapist/clients/demo-shoulder",
+                "label": "View care plan"
+              },
+              "status": "active",
+              "statusLabel": "Active",
+              "synthetic": true,
+              "updatedAt": "2026-08-31T01:32:38.140Z"
+            }
+          ],
+          "filters": {
+            "query": "",
+            "status": "all"
+          },
+          "limit": 3,
+          "shown": 3,
+          "synthetic": true,
+          "totals": {
+            "activePrograms": 1,
+            "clients": 3,
+            "needsReview": 0
+          },
+          "truncated": false
+        }
+      }
+    },
+    {
+      "step": "back-navigation-fresh",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_F3B2B91B894E4A679E340249A75B832F",
+            "confirmedAt": "2026-08-31T01:32:38.140Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-shoulder/programs/program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_F3B2B91B894E4A679E340249A75B832F",
+            "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "revision": 4
+          },
+          "caseContext": {
+            "bodyRegion": "shoulder",
+            "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+            "equipment": [
+              "wall",
+              "stick",
+              "table"
+            ],
+            "goals": [
+              "comfortable shoulder mobility",
+              "daily activity"
+            ],
+            "minutesPerDay": 15,
+            "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+            "postOpWeeks": 6,
+            "procedure": "Therapist-entered synthetic demo procedure",
+            "protocol": "Week-six synthetic demo protocol"
+          },
+          "clientId": "demo-shoulder",
+          "currentDraft": null,
+          "displayName": "Demo Client — Shoulder",
+          "history": {
+            "entries": [],
+            "limit": 20,
+            "total": 0,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:38.140Z",
+              "detail": "Revision 4 · patient program CP_F3B2B91B894E4A679E340249A75B832F."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:06.722Z",
+              "detail": "Assisted Shoulder Flexion with Stick moved to position 2."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:06.401Z",
+              "detail": "Assisted Shoulder Flexion with Stick"
+            },
+            {
+              "action": "Created a visible draft.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:31:35.567Z",
+              "detail": "2 exercises · 3.6 minutes · awaiting therapist review."
+            },
+            {
+              "action": "Reviewed exercise details.",
+              "actor": "agent",
+              "createdAt": "2026-08-31T01:31:32.091Z",
+              "detail": "Shoulder Pendulum"
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "revision-keeps-active-lineage",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_F3B2B91B894E4A679E340249A75B832F",
+          "clientId": "demo-shoulder",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+            "estimatedMinutes": 3.3,
+            "itemCount": 2,
+            "revision": 5,
+            "source": "therapist"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "awaiting_therapist_review"
+        }
+      }
+    },
+    {
+      "step": "simulated-ui-confirmation-v2",
+      "state": {
+        "ok": true,
+        "value": {
+          "activeConfirmedCode": "CP_FE545BD55EC24BECB2472C83F7401D87",
+          "clientId": "demo-shoulder",
+          "confirmedCode": "CP_FE545BD55EC24BECB2472C83F7401D87",
+          "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+          "draft": {
+            "draftId": "draft_fbe35e0d-665a-4ace-8915-4165bdd8f4a9",
+            "estimatedMinutes": 3.2,
+            "itemCount": 2,
+            "revision": 6,
+            "source": "therapist"
+          },
+          "minutesPerDay": 15,
+          "patientLabel": "Demo Client — Shoulder",
+          "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+          "status": "confirmed"
+        }
+      }
+    },
+    {
+      "step": "immutable-history",
+      "result": {
+        "ok": true,
+        "value": {
+          "activeConfirmedVersion": {
+            "code": "CP_FE545BD55EC24BECB2472C83F7401D87",
+            "confirmedAt": "2026-08-31T01:33:55.394Z",
+            "confirmedBy": "therapist",
+            "editorHref": "/therapist/clients/demo-shoulder/programs/program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "estimatedMinutes": 3.2,
+            "itemCount": 2,
+            "patientHref": "/patient/CP_FE545BD55EC24BECB2472C83F7401D87",
+            "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+            "revision": 6
+          },
+          "caseContext": {
+            "bodyRegion": "shoulder",
+            "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+            "equipment": [
+              "wall",
+              "stick",
+              "table"
+            ],
+            "goals": [
+              "comfortable shoulder mobility",
+              "daily activity"
+            ],
+            "minutesPerDay": 15,
+            "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+            "postOpWeeks": 6,
+            "procedure": "Therapist-entered synthetic demo procedure",
+            "protocol": "Week-six synthetic demo protocol"
+          },
+          "clientId": "demo-shoulder",
+          "currentDraft": null,
+          "displayName": "Demo Client — Shoulder",
+          "history": {
+            "entries": [
+              {
+                "code": "CP_F3B2B91B894E4A679E340249A75B832F",
+                "confirmedAt": "2026-08-31T01:32:38.140Z",
+                "editorHref": "/therapist/clients/demo-shoulder/programs/program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+                "itemCount": 2,
+                "kind": "confirmed_version",
+                "patientHref": "/patient/CP_F3B2B91B894E4A679E340249A75B832F",
+                "programId": "program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+                "revision": 4
+              }
+            ],
+            "limit": 20,
+            "total": 1,
+            "truncated": false
+          },
+          "recentActivity": [
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:33:55.394Z",
+              "detail": "Revision 6 · patient program CP_FE545BD55EC24BECB2472C83F7401D87."
+            },
+            {
+              "action": "Changed draft dosage.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:33:55.075Z",
+              "detail": "Assisted Shoulder Flexion with Stick"
+            },
+            {
+              "action": "Reopened the confirmed plan for revision.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:33:51.385Z",
+              "detail": "The existing patient link CP_F3B2B91B894E4A679E340249A75B832F remains active until a replacement is confirmed."
+            },
+            {
+              "action": "Confirmed the prescription.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:38.140Z",
+              "detail": "Revision 4 · patient program CP_F3B2B91B894E4A679E340249A75B832F."
+            },
+            {
+              "action": "Reordered the draft.",
+              "actor": "therapist",
+              "createdAt": "2026-08-31T01:32:06.722Z",
+              "detail": "Assisted Shoulder Flexion with Stick moved to position 2."
+            }
+          ],
+          "status": "active",
+          "statusLabel": "Active care plan",
+          "synthetic": true,
+          "totalPrograms": 1
+        }
+      }
+    },
+    {
+      "step": "immutable-patient-links-and-history-navigation",
+      "old": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Shoulder\n\nTherapist-confirmed revision 4 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nShoulder Pendulum\n\nStanding with trunk supported\n\nTarget: 30 sec hold\n\nSupport the body with the other arm and let the working arm relax.\nUse gentle body movement to make a small, comfortable pendulum motion.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nShoulder Pendulum\n\nSet 1 · 30 sec hold\n\nPlanned\n2\n\nShoulder Pendulum\n\nSet 2 · 30 sec hold\n\nPlanned\n3\n\nAssisted Shoulder Flexion with Stick\n\nSet 1 · 6 reps\n\nPlanned\n4\n\nAssisted Shoulder Flexion with Stick\n\nSet 2 · 6 reps\n\nPlanned",
+      "new": "PATIENT SESSION · TIMER/MANUAL FALLBACK\n\nDemo Client — Shoulder\n\nTherapist-confirmed revision 6 · camera coaching begins in the next phase.\n\n0/4\n\nSETS RESOLVED\n\nRestart demo\n\nUP NEXT · SET 1\n\nShoulder Pendulum\n\nStanding with trunk supported\n\nTarget: 30 sec hold\n\nSupport the body with the other arm and let the working arm relax.\nUse gentle body movement to make a small, comfortable pendulum motion.\nStart this set\nSkip exercise\nVisible skip reason\n\nStop is always available. Finishing becomes available only after every prescribed set is completed, skipped, or stopped.\n\nStop session\nFinish session\n\nTODAY’S SETS\n\nPrescription queue\n1\n\nShoulder Pendulum\n\nSet 1 · 30 sec hold\n\nPlanned\n2\n\nShoulder Pendulum\n\nSet 2 · 30 sec hold\n\nPlanned\n3\n\nAssisted Shoulder Flexion with Stick\n\nSet 1 · 5 reps\n\nPlanned\n4\n\nAssisted Shoulder Flexion with Stick\n\nSet 2 · 5 reps\n\nPlanned"
+    },
+    {
+      "step": "cross-client-editor-denied",
+      "tools": "No WebMCP tools are available in this document.",
+      "visibleText": "- banner:\n  - link \"CoachPoint home\":\n    - /url: /\n    - generic: CP\n    - generic: CoachPoint\n    - generic: by Crosspoint\n  - navigation \"Primary navigation\":\n    - link \"Therapist workspace\":\n      - /url: /therapist\n    - link \"Motion lab\":\n      - /url: /motion-lab\n    - link \"WebMCP Challenge\":\n      - /url: https://webmcp.devpost.com/\n- main:\n  - paragraph: Prescription unavailable\n  - heading \"This synthetic program could not be found.\" [level=1]\n  - paragraph: Return to the client record and open an existing program or create a new draft.\n  - link \"Back to client\":\n    - /url: /therapist/clients/demo-knee\n    - text: Back to client\n- contentinfo:\n  - paragraph: Open-source WebMCP Challenge project by Crosspoint.\n  - paragraph: Educational demonstration only. Not medical diagnosis or a substitute for clinician instructions.\n- alert"
+    },
+    {
+      "step": "landing-cleanup",
+      "tools": "No WebMCP tools are available in this document."
+    }
+  ],
+  "context": {
+    "activeConfirmedVersion": null,
+    "caseContext": {
+      "bodyRegion": "shoulder",
+      "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+      "equipment": [
+        "wall",
+        "stick",
+        "table"
+      ],
+      "goals": [
+        "comfortable shoulder mobility",
+        "daily activity"
+      ],
+      "minutesPerDay": 15,
+      "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+      "postOpWeeks": 6,
+      "procedure": "Therapist-entered synthetic demo procedure",
+      "protocol": "Week-six synthetic demo protocol"
+    },
+    "clientId": "demo-shoulder",
+    "currentDraft": null,
+    "displayName": "Demo Client — Shoulder",
+    "history": {
+      "entries": [],
+      "limit": 20,
+      "total": 0,
+      "truncated": false
+    },
+    "recentActivity": [],
+    "status": "no-plan",
+    "statusLabel": "Ready for a prescription",
+    "synthetic": true,
+    "totalPrograms": 0
+  },
+  "editorUrl": "http://127.0.0.1:44151/therapist/clients/demo-shoulder/programs/program_de448a1d-8e1a-4906-997c-3fd1720355c5",
+  "chosen": [
+    {
+      "bodyRegion": "shoulder",
+      "coachingMode": "timer",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "reps": 8,
+        "restSeconds": 30,
+        "sets": 2
+      },
+      "difficulty": 1,
+      "equipment": [
+        "stick"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "assisted mobility",
+        "shoulder flexion",
+        "range of motion"
+      ],
+      "id": "shoulder-flexion-stick",
+      "name": "Assisted Shoulder Flexion with Stick"
+    },
+    {
+      "bodyRegion": "shoulder",
+      "coachingMode": "timer",
+      "defaultDosage": {
+        "frequencyPerDay": 1,
+        "holdSeconds": 30,
+        "restSeconds": 30,
+        "sets": 2
+      },
+      "difficulty": 1,
+      "equipment": [
+        "table"
+      ],
+      "estimatedMinutes": 3,
+      "goals": [
+        "gentle mobility",
+        "relaxation",
+        "supported movement"
+      ],
+      "id": "shoulder-pendulum",
+      "name": "Shoulder Pendulum"
+    }
+  ],
+  "input": {
+    "expectedDraftRevision": 1,
+    "caseContext": {
+      "bodyRegion": "shoulder",
+      "diagnosis": "Synthetic shoulder impingement case, six weeks post-op",
+      "equipment": [
+        "wall",
+        "stick",
+        "table"
+      ],
+      "goals": [
+        "comfortable shoulder mobility",
+        "daily activity"
+      ],
+      "minutesPerDay": 15,
+      "notes": "Synthetic competition case. Verify every item against the applicable therapist-approved protocol.",
+      "postOpWeeks": 6,
+      "procedure": "Therapist-entered synthetic demo procedure",
+      "protocol": "Week-six synthetic demo protocol",
+      "patientLabel": "Demo Client — Shoulder"
+    },
+    "items": [
+      {
+        "exerciseId": "shoulder-flexion-stick",
+        "frequencyPerDay": 1,
+        "reps": 8,
+        "restSeconds": 30,
+        "sets": 2
+      },
+      {
+        "exerciseId": "shoulder-pendulum",
+        "frequencyPerDay": 1,
+        "holdSeconds": 30,
+        "restSeconds": 30,
+        "sets": 2
+      }
+    ]
+  },
+  "firstCode": "CP_F3B2B91B894E4A679E340249A75B832F",
+  "firstPatientUrl": "http://127.0.0.1:44151/patient/CP_F3B2B91B894E4A679E340249A75B832F",
+  "secondCode": "CP_FE545BD55EC24BECB2472C83F7401D87",
+  "secondPatientUrl": "http://127.0.0.1:44151/patient/CP_FE545BD55EC24BECB2472C83F7401D87",
+  "runtime": {
+    "brokenImages": 0,
+    "cjk": false,
+    "scrollWidth": 1265,
+    "viewport": {
+      "height": 720,
+      "width": 1265
+    }
+  },
+  "console": [],
+  "completedAt": "2026-08-31T01:34:30.448Z",
+  "result": "passed",
+  "screenshots": [
+    "old-patient-viewport.png",
+    "new-patient-viewport.png",
+    "history-viewport.png"
+  ]
+}
