@@ -1,18 +1,23 @@
 import type { ConfirmedProgram, DomainError, DomainResult } from "./types.ts";
 import { getExerciseById } from "./catalog.ts";
+import type { MotionSetAggregate } from "../motion/set-aggregate.ts";
 import type {
+  CompleteMotionSetCheckInInput,
   CompleteExerciseSetInput,
   LogPainInput,
   PainEvent,
   PatientExerciseSet,
+  PatientMotionAttempt,
   PatientSession,
   PatientSessionProgress,
   PatientSessionSummary,
   SessionFactories,
   SessionIdKind,
   SkipExerciseInput,
+  StageMotionSetResultInput,
   StartExerciseSetInput,
   StopSessionInput,
+  SwitchActiveCameraSetToManualFallbackInput,
 } from "./session-types.ts";
 
 export const PAIN_SAFETY_THRESHOLD = 5;
@@ -116,6 +121,294 @@ function validateScore(
     : error("invalid_score", `${field} must be between 0 and 10.`, field);
 }
 
+function validateRequiredScore(value: unknown, field: string): DomainError | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 10
+    ? null
+    : error(
+        "invalid_score",
+        `An explicit ${field} score between 0 and 10 is required.`,
+        field,
+      );
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function hasExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  const keys = Reflect.ownKeys(value);
+  return (
+    keys.length === expected.length &&
+    keys.every(
+      (key) => typeof key === "string" && expected.includes(key),
+    )
+  );
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return isFiniteNonNegative(value) && Number.isInteger(value);
+}
+
+function cloneMotionSetAggregate(
+  aggregate: MotionSetAggregate,
+): MotionSetAggregate {
+  return {
+    schemaVersion: 1,
+    kind: "motion_set_aggregate",
+    target: { ...aggregate.target },
+    outcome: aggregate.outcome,
+    actual: { ...aggregate.actual },
+    measurements: { ...aggregate.measurements },
+    qualityEventLabels: [...aggregate.qualityEventLabels],
+    clinicalBoundary: { ...aggregate.clinicalBoundary },
+    privacyBoundary: { ...aggregate.privacyBoundary },
+    authorityBoundary: { ...aggregate.authorityBoundary },
+  };
+}
+
+function invalidMotionResult(message: string, field = "aggregate") {
+  return error("invalid_motion_result", message, field);
+}
+
+/**
+ * Treats camera output as untrusted at the patient-domain boundary. Only the
+ * exact aggregate contract is copied, and its target must match the active,
+ * therapist-confirmed set snapshot.
+ */
+function validateAndCloneMotionSetAggregate(
+  value: unknown,
+  target: PatientExerciseSet,
+): DomainResult<MotionSetAggregate> {
+  try {
+    if (
+      !isPlainRecord(value) ||
+      !hasExactKeys(value, [
+        "schemaVersion",
+        "kind",
+        "target",
+        "outcome",
+        "actual",
+        "measurements",
+        "qualityEventLabels",
+        "clinicalBoundary",
+        "privacyBoundary",
+        "authorityBoundary",
+      ])
+    ) {
+      return failure(
+        invalidMotionResult(
+          "The motion result must use the allowlisted aggregate contract only.",
+        ),
+      );
+    }
+
+    const aggregateTarget = value.target;
+    const actual = value.actual;
+    const measurements = value.measurements;
+    const clinicalBoundary = value.clinicalBoundary;
+    const privacyBoundary = value.privacyBoundary;
+    const authorityBoundary = value.authorityBoundary;
+    const qualityEventLabels = value.qualityEventLabels;
+
+    if (
+      value.schemaVersion !== 1 ||
+      value.kind !== "motion_set_aggregate" ||
+      (value.outcome !== "completed" && value.outcome !== "stopped") ||
+      !isPlainRecord(aggregateTarget) ||
+      !hasExactKeys(aggregateTarget, [
+        "exerciseId",
+        "exerciseName",
+        "targetRepetitions",
+        "source",
+      ]) ||
+      !isPlainRecord(actual) ||
+      !hasExactKeys(actual, [
+        "completedRepetitions",
+        "targetAchieved",
+        "detectedRepetitionWindowSeconds",
+      ]) ||
+      !isPlainRecord(measurements) ||
+      !hasExactKeys(measurements, [
+        "context",
+        "averageDetectedKneeRangeDeg",
+        "detectedRangeDeclineDeg",
+      ]) ||
+      !Array.isArray(qualityEventLabels) ||
+      !isPlainRecord(clinicalBoundary) ||
+      !hasExactKeys(clinicalBoundary, ["clinicalAssessment", "intendedUse"]) ||
+      !isPlainRecord(privacyBoundary) ||
+      !hasExactKeys(privacyBoundary, [
+        "patientIdentityIncluded",
+        "cameraDetailsIncluded",
+        "rawFramesIncluded",
+        "rawLandmarksIncluded",
+        "perRepTimeSeriesIncluded",
+      ]) ||
+      !isPlainRecord(authorityBoundary) ||
+      !hasExactKeys(authorityBoundary, [
+        "targetIsTherapistConfirmed",
+        "agentCanStartCamera",
+        "agentCanStopCamera",
+        "agentCanControlSet",
+        "agentCanChangeTarget",
+      ])
+    ) {
+      return failure(
+        invalidMotionResult("The motion result contract is malformed."),
+      );
+    }
+
+    const prescribedRepetitions = target.prescribedTarget.reps;
+    if (
+      target.prescribedCoachingMode !== "camera" ||
+      target.mode !== "camera" ||
+      prescribedRepetitions === undefined ||
+      aggregateTarget.exerciseId !== target.exerciseId ||
+      aggregateTarget.exerciseName !== target.exerciseName ||
+      aggregateTarget.targetRepetitions !== prescribedRepetitions ||
+      aggregateTarget.source !== "therapist_confirmed"
+    ) {
+      return failure(
+        invalidMotionResult(
+          "The motion result target must exactly match this active therapist-confirmed camera set.",
+          "aggregate.target",
+        ),
+      );
+    }
+
+    if (
+      !isNonNegativeInteger(actual.completedRepetitions) ||
+      actual.completedRepetitions > prescribedRepetitions ||
+      typeof actual.targetAchieved !== "boolean" ||
+      actual.targetAchieved !==
+        (actual.completedRepetitions >= prescribedRepetitions) ||
+      !isFiniteNonNegative(actual.detectedRepetitionWindowSeconds) ||
+      measurements.context !== "camera_2d_demo_proxy" ||
+      !isFiniteNonNegative(measurements.averageDetectedKneeRangeDeg) ||
+      measurements.averageDetectedKneeRangeDeg > 180 ||
+      !isFiniteNonNegative(measurements.detectedRangeDeclineDeg) ||
+      measurements.detectedRangeDeclineDeg > 180
+    ) {
+      return failure(
+        invalidMotionResult(
+          "The motion result contains invalid or inconsistent aggregate measurements.",
+          "aggregate.actual",
+        ),
+      );
+    }
+
+    const allowedQualityEvents = new Set([
+      "demo_depth_threshold_not_reached",
+      "detected_range_decline",
+    ]);
+    if (
+      qualityEventLabels.some(
+        (label) =>
+          typeof label !== "string" || !allowedQualityEvents.has(label),
+      ) ||
+      new Set(qualityEventLabels).size !== qualityEventLabels.length ||
+      clinicalBoundary.clinicalAssessment !== false ||
+      clinicalBoundary.intendedUse !== "demo_coaching_support_only" ||
+      privacyBoundary.patientIdentityIncluded !== false ||
+      privacyBoundary.cameraDetailsIncluded !== false ||
+      privacyBoundary.rawFramesIncluded !== false ||
+      privacyBoundary.rawLandmarksIncluded !== false ||
+      privacyBoundary.perRepTimeSeriesIncluded !== false ||
+      authorityBoundary.targetIsTherapistConfirmed !== true ||
+      authorityBoundary.agentCanStartCamera !== false ||
+      authorityBoundary.agentCanStopCamera !== false ||
+      authorityBoundary.agentCanControlSet !== false ||
+      authorityBoundary.agentCanChangeTarget !== false
+    ) {
+      return failure(
+        invalidMotionResult(
+          "The motion result violates its quality, privacy, clinical, or authority boundary.",
+        ),
+      );
+    }
+
+    if (value.outcome === "stopped" && actual.targetAchieved) {
+      return failure(
+        invalidMotionResult(
+          "A stopped motion result cannot claim that the confirmed target was achieved.",
+          "aggregate.outcome",
+        ),
+      );
+    }
+
+    return success(
+      cloneMotionSetAggregate(value as unknown as MotionSetAggregate),
+    );
+  } catch {
+    return failure(
+      invalidMotionResult("The motion result could not be safely inspected."),
+    );
+  }
+}
+
+function cloneMotionAttempt(
+  attempt: PatientMotionAttempt,
+): PatientMotionAttempt {
+  return {
+    status: "awaiting_check_in",
+    stagedAt: attempt.stagedAt,
+    aggregate: cloneMotionSetAggregate(attempt.aggregate),
+    stopReason: attempt.stopReason,
+  };
+}
+
+function cloneExerciseSet(set: PatientExerciseSet): PatientExerciseSet {
+  return {
+    ...set,
+    prescribedTarget: { ...set.prescribedTarget },
+    actual: set.actual
+      ? {
+          ...set.actual,
+          motion: set.actual.motion
+            ? cloneMotionSetAggregate(set.actual.motion)
+            : undefined,
+        }
+      : undefined,
+    motionAttempt: set.motionAttempt
+      ? cloneMotionAttempt(set.motionAttempt)
+      : undefined,
+  };
+}
+
+function setDurationSeconds(
+  startedAt: string | undefined,
+  completedAt: string,
+): DomainResult<number> {
+  const startMs = startedAt ? new Date(startedAt).getTime() : Number.NaN;
+  const completedMs = new Date(completedAt).getTime();
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(completedMs) ||
+    completedMs < startMs
+  ) {
+    return failure(
+      error(
+        "invalid_session_timing",
+        "The camera set timestamps are invalid or out of order.",
+        "startedAt",
+        false,
+      ),
+    );
+  }
+  return success((completedMs - startMs) / 1000);
+}
+
 function cloneSession(
   session: PatientSession,
   updates: Partial<PatientSession>,
@@ -124,7 +417,7 @@ function cloneSession(
     ...session,
     ...updates,
     program: { ...session.program },
-    sets: updates.sets ?? session.sets.map((set) => ({ ...set })),
+    sets: (updates.sets ?? session.sets).map(cloneExerciseSet),
     painEvents:
       updates.painEvents ?? session.painEvents.map((event) => ({ ...event })),
     safetyGate: updates.safetyGate ?? { ...session.safetyGate },
@@ -297,6 +590,28 @@ export function startExerciseSet(
       error("set_not_available", "The requested set is not available to start.", "setId"),
     );
   }
+  if (
+    input.mode !== "manual" &&
+    input.mode !== "timer" &&
+    input.mode !== "camera"
+  ) {
+    return failure(
+      error("invalid_set_mode", "The requested set mode is not supported.", "mode"),
+    );
+  }
+  if (
+    input.mode === "camera" &&
+    (target.prescribedCoachingMode !== "camera" ||
+      target.prescribedTarget.reps === undefined)
+  ) {
+    return failure(
+      error(
+        "camera_mode_unavailable",
+        "Camera mode is available only for a therapist-confirmed repetition exercise configured for camera coaching.",
+        "mode",
+      ),
+    );
+  }
 
   const now = timestamp(factories(factoryOverrides).now);
   if (!now.ok) return now;
@@ -361,6 +676,15 @@ export function completeExerciseSet(
   if (!target || target.status !== "active") {
     return failure(
       error("set_not_active", "Only the active set can be completed.", "setId"),
+    );
+  }
+  if (target.mode === "camera") {
+    return failure(
+      error(
+        "camera_check_in_required",
+        "A camera set must stage its terminal aggregate and complete the explicit RPE and pain check-in.",
+        "setId",
+      ),
     );
   }
   if (!Number.isFinite(input.durationSeconds) || input.durationSeconds < 0) {
@@ -440,6 +764,293 @@ export function completeExerciseSet(
           : { ...set },
       ),
       painEvents,
+      safetyGate,
+    }),
+  );
+}
+
+export function stageMotionSetResult(
+  session: PatientSession,
+  input: StageMotionSetResultInput,
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  if (session.status === "completed" || session.status === "stopped") {
+    return failure(
+      error("session_closed", "This session is already closed.", "status"),
+    );
+  }
+  if (session.status !== "active" || session.safetyGate.active) {
+    return failure(
+      error(
+        session.safetyGate.active ? "pain_safety_gate" : "session_not_active",
+        session.safetyGate.active
+          ? "The pain safety gate is active. A camera result cannot be staged."
+          : "The session must be active before a camera result can be staged.",
+        session.safetyGate.active ? "safetyGate" : "status",
+      ),
+    );
+  }
+
+  const target = session.sets.find((set) => set.id === input.setId);
+  if (!target || target.status !== "active" || target.mode !== "camera") {
+    return failure(
+      error(
+        "camera_set_not_active",
+        "Only the active camera set can stage a motion result.",
+        "setId",
+      ),
+    );
+  }
+  if (target.motionAttempt) {
+    return failure(
+      error(
+        "motion_result_already_staged",
+        "This camera set is already awaiting RPE and pain check-in.",
+        "setId",
+      ),
+    );
+  }
+
+  const validatedAggregate = validateAndCloneMotionSetAggregate(
+    input.aggregate,
+    target,
+  );
+  if (!validatedAggregate.ok) return validatedAggregate;
+
+  const stopReason = input.stopReason?.trim();
+  if (
+    validatedAggregate.value.outcome === "stopped" &&
+    (!stopReason || stopReason.length > 240)
+  ) {
+    return failure(
+      error(
+        "stop_reason_required",
+        "A visible stop reason of 240 characters or fewer is required for a stopped camera set.",
+        "stopReason",
+      ),
+    );
+  }
+  if (
+    validatedAggregate.value.outcome === "completed" &&
+    stopReason
+  ) {
+    return failure(
+      error(
+        "unexpected_stop_reason",
+        "A completed camera result cannot include a stop reason.",
+        "stopReason",
+      ),
+    );
+  }
+
+  const stagedAt = timestamp(factories(factoryOverrides).now);
+  if (!stagedAt.ok) return stagedAt;
+  const stagedDuration = setDurationSeconds(target.startedAt, stagedAt.value);
+  if (!stagedDuration.ok) return stagedDuration;
+  const attempt: PatientMotionAttempt = {
+    status: "awaiting_check_in",
+    stagedAt: stagedAt.value,
+    aggregate: validatedAggregate.value,
+    stopReason:
+      validatedAggregate.value.outcome === "stopped" ? stopReason : undefined,
+  };
+
+  return success(
+    cloneSession(session, {
+      sets: session.sets.map((set) =>
+        set.id === target.id
+          ? { ...cloneExerciseSet(set), motionAttempt: attempt }
+          : cloneExerciseSet(set),
+      ),
+    }),
+  );
+}
+
+export function switchActiveCameraSetToManualFallback(
+  session: PatientSession,
+  input: SwitchActiveCameraSetToManualFallbackInput,
+): DomainResult<PatientSession> {
+  if (session.safetyGate.active) {
+    return failure(
+      error(
+        "pain_safety_gate",
+        "The pain safety gate is active. Camera fallback cannot continue the set.",
+        "safetyGate",
+      ),
+    );
+  }
+  if (session.status !== "active") {
+    return failure(
+      error(
+        "session_not_active",
+        "Only an active session can switch a camera set to manual fallback.",
+        "status",
+      ),
+    );
+  }
+
+  const target = session.sets.find((set) => set.id === input.setId);
+  if (!target || target.status !== "active" || target.mode !== "camera") {
+    return failure(
+      error(
+        "camera_set_not_active",
+        "Only the active camera set can switch to manual fallback.",
+        "setId",
+      ),
+    );
+  }
+  if (target.motionAttempt) {
+    return failure(
+      error(
+        "motion_result_already_staged",
+        "A staged camera result must be checked in or stopped; it cannot switch to manual fallback.",
+        "setId",
+      ),
+    );
+  }
+
+  return success(
+    cloneSession(session, {
+      sets: session.sets.map((set) =>
+        set.id === target.id
+          ? { ...cloneExerciseSet(set), mode: "manual" }
+          : cloneExerciseSet(set),
+      ),
+    }),
+  );
+}
+
+export function completeMotionSetCheckIn(
+  session: PatientSession,
+  input: CompleteMotionSetCheckInInput,
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  if (session.status === "completed" || session.status === "stopped") {
+    return failure(
+      error("session_closed", "This session is already closed.", "status"),
+    );
+  }
+  if (session.safetyGate.active) {
+    return failure(
+      error(
+        "pain_safety_gate",
+        "The pain safety gate is active. The staged camera result cannot override it.",
+        "safetyGate",
+      ),
+    );
+  }
+  if (session.status !== "active") {
+    return failure(
+      error(
+        "session_not_active",
+        "Resume the session before completing the camera check-in.",
+        "status",
+      ),
+    );
+  }
+
+  const target = session.sets.find((set) => set.id === input.setId);
+  if (
+    !target ||
+    target.status !== "active" ||
+    target.mode !== "camera" ||
+    target.motionAttempt?.status !== "awaiting_check_in"
+  ) {
+    return failure(
+      error(
+        "motion_check_in_unavailable",
+        "This active camera set does not have a staged result awaiting check-in.",
+        "setId",
+      ),
+    );
+  }
+
+  const rpeError = validateRequiredScore(input.rpe, "rpe");
+  const painError = validateRequiredScore(input.pain, "pain");
+  if (rpeError || painError) {
+    return failure(
+      ...([rpeError, painError].filter(Boolean) as DomainError[]),
+    );
+  }
+
+  const aggregateResult = validateAndCloneMotionSetAggregate(
+    target.motionAttempt.aggregate,
+    target,
+  );
+  if (!aggregateResult.ok) return aggregateResult;
+  const aggregate = aggregateResult.value;
+  if (aggregate.outcome === "stopped" && !target.motionAttempt.stopReason) {
+    return failure(
+      error(
+        "stop_reason_required",
+        "The staged stopped camera result has no visible stop reason.",
+        "motionAttempt.stopReason",
+      ),
+    );
+  }
+
+  const resolvedFactories = factories(factoryOverrides);
+  const completedAt = timestamp(resolvedFactories.now);
+  if (!completedAt.ok) return completedAt;
+  const duration = setDurationSeconds(
+    target.startedAt,
+    target.motionAttempt.stagedAt,
+  );
+  if (!duration.ok) return duration;
+  const checkInOrder = setDurationSeconds(
+    target.motionAttempt.stagedAt,
+    completedAt.value,
+  );
+  if (!checkInOrder.ok) return checkInOrder;
+
+  const painResult = addPainEvent(
+    session,
+    input.pain,
+    completedAt.value,
+    resolvedFactories.id,
+    {
+      note: "Patient-reported during camera set check-in.",
+      setId: target.id,
+    },
+  );
+  if (!painResult.ok) return painResult;
+
+  const actual = {
+    completedReps: aggregate.actual.completedRepetitions,
+    durationSeconds: duration.value,
+    rpe: input.rpe,
+    pain: input.pain,
+    motion: aggregate,
+  };
+  const safetyGate = { ...painResult.value.safetyGate };
+
+  return success(
+    cloneSession(session, {
+      status: safetyGate.active ? "paused" : "active",
+      pausedAt: safetyGate.active ? completedAt.value : undefined,
+      sets: session.sets.map((set) => {
+        if (set.id !== target.id) return cloneExerciseSet(set);
+        if (aggregate.outcome === "stopped") {
+          return {
+            ...cloneExerciseSet(set),
+            status: "stopped",
+            stoppedAt: completedAt.value,
+            stopReason: target.motionAttempt?.stopReason,
+            completionKind: undefined,
+            actual,
+            motionAttempt: undefined,
+          };
+        }
+        return {
+          ...cloneExerciseSet(set),
+          status: "completed",
+          completedAt: completedAt.value,
+          completionKind: aggregate.actual.targetAchieved ? "full" : "partial",
+          actual,
+          motionAttempt: undefined,
+        };
+      }),
+      painEvents: painResult.value.painEvents,
       safetyGate,
     }),
   );
@@ -556,6 +1167,9 @@ export function logPain(
                   status: "stopped",
                   stoppedAt: now.value,
                   stopReason: "Pain safety gate activated.",
+                  // Safety wins over a pending camera completion. Without the
+                  // explicit RPE check-in, no motion actual is committed.
+                  motionAttempt: undefined,
                 }
               : { ...set },
           )
@@ -592,6 +1206,9 @@ export function stopSession(
               stoppedAt: now.value,
               stopReason: input.reason.trim(),
               actual: input.actual,
+              // A global Stop cannot silently consume a pending camera result
+              // that still requires explicit RPE and pain check-in.
+              motionAttempt: undefined,
             }
           : { ...set },
       ),

@@ -4,6 +4,7 @@ import {
   updateRepCounter,
 } from "./rep-counter.ts";
 import type {
+  BodySide,
   KneeFrameAnalysis,
   NormalizedLandmarkLike,
   RepCounterConfig,
@@ -13,18 +14,25 @@ import type {
 
 export interface HalfSquatConfig extends RepCounterConfig {
   minVisibility: number;
+  sideHysteresisMargin?: number;
 }
 
 export const HALF_SQUAT_CONFIG: HalfSquatConfig = {
   ...DEFAULT_HALF_SQUAT_CONFIG,
   minVisibility: 0.6,
+  sideHysteresisMargin: 0.08,
 };
 
 export function analyzeHalfSquatLandmarks(
   landmarks: readonly NormalizedLandmarkLike[],
   config: HalfSquatConfig = HALF_SQUAT_CONFIG,
+  preferredSide?: BodySide,
 ): KneeFrameAnalysis {
-  const selection = selectKneeSide(landmarks);
+  const selection = selectKneeSide(
+    landmarks,
+    preferredSide,
+    config.sideHysteresisMargin,
+  );
   if (!selection || selection.visibility < config.minVisibility) {
     return {
       valid: false,
@@ -53,8 +61,13 @@ export function processHalfSquatFrame(
   landmarks: readonly NormalizedLandmarkLike[],
   timestampMs: number,
   config: HalfSquatConfig = HALF_SQUAT_CONFIG,
+  preferredSide?: BodySide,
 ): { analysis: KneeFrameAnalysis; update: RepCounterUpdate } {
-  const analysis = analyzeHalfSquatLandmarks(landmarks, config);
+  const analysis = analyzeHalfSquatLandmarks(
+    landmarks,
+    config,
+    preferredSide,
+  );
   return {
     analysis,
     update:
@@ -63,4 +76,3 @@ export function processHalfSquatFrame(
         : { state, cue: analysis.cue },
   };
 }
-

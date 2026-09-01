@@ -26,6 +26,15 @@ export {
   type TherapistToolHandlers,
 } from "./therapist-tools.ts";
 export {
+  createMotionLabToolDescriptors,
+  getLatestMotionLabSetResultSchema,
+} from "./motion-tools.ts";
+export {
+  createPatientMotionToolDescriptors,
+  reviewCompletedSetSchema,
+  type PatientCompletedMotionSetView,
+} from "./patient-motion-tools.ts";
+export {
   useWebMcpTools,
   type WebMcpRegistrationState,
   type WebMcpRegistrationStatus,

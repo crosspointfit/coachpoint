@@ -17,6 +17,8 @@ const LANDMARK_INDEX = {
   right: { hip: 24, knee: 26, ankle: 28 },
 } as const;
 
+export const DEFAULT_SIDE_HYSTERESIS_MARGIN = 0.08;
+
 function finitePoint(point: NormalizedLandmarkLike | undefined): point is NormalizedLandmarkLike {
   return !!point && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
@@ -67,6 +69,8 @@ export function calculateAngleDeg(
 
 export function selectKneeSide(
   landmarks: readonly NormalizedLandmarkLike[],
+  preferredSide?: BodySide,
+  hysteresisMargin = DEFAULT_SIDE_HYSTERESIS_MARGIN,
 ): SideSelection | null {
   const candidates: SideSelection[] = [];
   for (const side of ["left", "right"] as const) {
@@ -75,6 +79,17 @@ export function selectKneeSide(
       candidates.push({ side, triplet, visibility: tripletVisibility(triplet) });
     }
   }
-  return candidates.sort((a, b) => b.visibility - a.visibility)[0] ?? null;
-}
+  const best = candidates.sort((a, b) => b.visibility - a.visibility)[0];
+  if (!best || !preferredSide) return best ?? null;
 
+  const preferred = candidates.find(
+    (candidate) => candidate.side === preferredSide,
+  );
+  if (!preferred || preferred.side === best.side) return best;
+
+  const margin =
+    Number.isFinite(hysteresisMargin) && hysteresisMargin > 0
+      ? hysteresisMargin
+      : 0;
+  return best.visibility - preferred.visibility > margin ? best : preferred;
+}

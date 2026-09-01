@@ -37,6 +37,7 @@ export {
 } from "./program.ts";
 export {
   PAIN_SAFETY_THRESHOLD,
+  completeMotionSetCheckIn,
   completeExerciseSet,
   createPatientSession,
   finishSession,
@@ -45,16 +46,25 @@ export {
   pauseSession,
   resumeSession,
   skipExercise,
+  stageMotionSetResult,
   startExerciseSet,
   stopSession,
+  switchActiveCameraSetToManualFallback,
 } from "./session.ts";
+export {
+  projectLatestPatientMotionResult,
+  type PatientCompletedMotionSetView,
+  type PatientMotionContinuationBlock,
+} from "./patient-motion-view.ts";
 export type {
+  CompleteMotionSetCheckInInput,
   CompleteExerciseSetInput,
   LogPainInput,
   PainEvent,
   PainSafetyGate,
   PartialSetResultInput,
   PatientExerciseSet,
+  PatientMotionAttempt,
   PatientProgramSnapshot,
   PatientSession,
   PatientSessionProgress,
@@ -68,8 +78,10 @@ export type {
   SetActualCompletion,
   SetCompletionKind,
   SkipExerciseInput,
+  StageMotionSetResultInput,
   StartExerciseSetInput,
   StopSessionInput,
+  SwitchActiveCameraSetToManualFallbackInput,
 } from "./session-types.ts";
 export type {
   ActivityActor,

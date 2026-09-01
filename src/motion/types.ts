@@ -66,11 +66,10 @@ export interface KneeFrameAnalysis {
 
 export interface HalfSquatSetSummary {
   completedReps: number;
-  durationSeconds: number;
+  detectedRepetitionWindowSeconds: number;
   averageRangeDeg: number;
   rangeDeclineDeg: number;
   averageMinAngleDeg: number;
   qualityFlags: string[];
   reps: RepRecord[];
 }
-

@@ -23,6 +23,32 @@ export function createRepCounterState(): RepCounterState {
   };
 }
 
+export function resetIncompleteRep(
+  state: RepCounterState,
+): RepCounterState {
+  return {
+    ...state,
+    phase: "seeking_standing",
+    stableCount: 0,
+    activeRepStartedAtMs: undefined,
+    activeMinAngleDeg: undefined,
+    activeMaxAngleDeg: undefined,
+    records: [...state.records],
+  };
+}
+
+export function didReachRepTarget(
+  update: RepCounterUpdate,
+  targetReps: number,
+): boolean {
+  return (
+    Number.isInteger(targetReps) &&
+    targetReps > 0 &&
+    update.event?.type === "rep_completed" &&
+    update.event.record.rep === targetReps
+  );
+}
+
 function cueFor(state: RepCounterState, config: RepCounterConfig): string {
   switch (state.phase) {
     case "seeking_standing":
@@ -189,7 +215,7 @@ export function summarizeRepCounter(
   const completedAt = records.at(-1)?.completedAtMs;
   return {
     completedReps: records.length,
-    durationSeconds:
+    detectedRepetitionWindowSeconds:
       startedAt === undefined || completedAt === undefined
         ? 0
         : Math.round(((completedAt - startedAt) / 1000) * 10) / 10,
@@ -201,4 +227,3 @@ export function summarizeRepCounter(
     reps: records,
   };
 }
-

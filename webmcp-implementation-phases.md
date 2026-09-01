@@ -1,7 +1,7 @@
 # CoachPoint WebMCP Challenge — Phase-based Implementation Plan
 
 > Status: Approved implementation direction
-> Last updated: 2026-08-31 (Asia/Taipei)
+> Last updated: 2026-09-01 (Asia/Taipei)
 > Related source: [`webmcp-challenge-spec.md`](./webmcp-challenge-spec.md)
 > Reusable source project: `/Users/tywang/Documents/AI/pt`
 
@@ -51,25 +51,60 @@ Updated after the first implementation checkpoint on 2026-08-28:
   browser-local demo FAQ. Competition hyperlinks are removed entirely from
   public chrome, including the footer. Ninety-two tests and responsive/browser
   QA pass. Source tokens and visual evidence are recorded in
-  `docs/design/pt-hep/` and `design-qa.md`. Camera work remains paused pending
-  user review of the updated homepage.
+  `docs/design/pt-hep/` and `design-qa.md`. That count records the homepage
+  checkpoint; the current suite baseline is 193 tests after camera, audio,
+  reusable runner/aggregate extraction, patient persistence/WebMCP, and the
+  therapist feedback projection.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
   create a versioned patient session, support timer/manual sets, pause/resume,
   skip, stop, RPE, pain reporting, a pain safety gate at 5/10, per-transition
   persistence, completion summaries, and refresh recovery. The complete
   therapist-to-patient fallback flow and pain gate pass real browser probes.
-- **Phase 6 — implementation complete; real-camera acceptance pending.**
+- **Phase 6 — core implementation complete; user-assisted camera/audio
+  acceptance pending.**
   MediaPipe 1.0.1, its self-hosted WASM runtime, and the lite pose model are
   included. The Motion Lab implements side selection, knee-angle calculation,
   stable-frame debouncing, half-squat phases, per-repetition metrics, quality
-  flags, set summaries, deterministic replay, skeleton overlay, GPU-to-CPU
-  runtime fallback, optional camera startup, and no-raw-frame retention.
-  Thirty-two total tests pass; the replay counts three repetitions and the
-  self-hosted GPU runtime/model load in headless Chromium. A user-assisted
-  camera run is still required to measure real-world counting accuracy before
-  Phase 7 patient WebMCP begins.
-- **Phase 7+ not started.** Patient WebMCP orchestration remains behind the
-  standalone motion-engine gate.
+  flags, set summaries, a test-only deterministic fixture, skeleton overlay,
+  GPU-to-CPU runtime fallback, and no-raw-frame retention. The page enumerates
+  cameras automatically without opening a stream. When browser privacy hides
+  the full list, the single primary action performs a one-time permission check
+  and releases its temporary stream before set startup. It supports selectable
+  devices, exact device constraints, device-change/disconnect handling, and
+  Stop/unmount stream cleanup. The standalone camera demo now has an explicit
+  six-rep target that
+  auto-completes and releases the stream. Tracking loss resets an incomplete
+  repetition and side selection uses visibility hysteresis to avoid
+  frame-to-frame oscillation.
+  Audio coaching is opt-in and English-only. Repetition completion belongs to
+  the browser reflex path and uses an immediate, non-verbal earcon; speech is
+  reserved for a few set milestones rather than queued once per repetition.
+  Natural voices rank ahead of novelty voices, an explicit voice choice is
+  persisted, and a preview is available. The current 193-test suite passes; the
+  test fixture counts three repetitions and the self-hosted GPU runtime/model
+  loads in headless Chromium. This is a software baseline, not real-camera
+  acceptance. By explicit user decision, OBS is the provisional integration
+  device and patient-route development may proceed; physical-camera validation
+  remains a release gate rather than a development blocker. See
+  [Motion Lab camera acceptance](./docs/motion-lab-camera-acceptance.md).
+- **Phase 7 isolated contract checkpoint — locally verified.** Motion Lab exposes one
+  route-scoped, read-only `get_latest_motion_lab_set_result` tool backed by a
+  terminal-only allowlisted projection. It refuses to expose live session state
+  and becomes readable only after a completed or stopped set has an aggregate.
+  It is explicitly labeled `isolated_demo` and returns no frames, landmarks,
+  raw angles, per-repetition time series, camera details, identity, or PII. All
+  canonical patient-route cognitive tools remain behind the standalone
+  physical-camera motion-engine gate. Native in-app Browser verification covers
+  both pre-set `result_unavailable` and a fresh 6/6 terminal aggregate.
+- **Phase 7 patient camera and post-set read — implemented locally.** A
+  therapist-confirmed half-squat set uses the reusable camera controller with
+  an exact prescribed target and explicit human prepare/start/Stop controls.
+  A sanitized aggregate is persisted into `awaiting_check_in`, then explicit
+  RPE/pain completes the set through the same immutable domain operations used
+  by the UI. `review_completed_set` returns only the latest persisted checked-in
+  result and is unavailable during active sensing or staged check-in. Patient
+  storage uses a versioned structural guard and V1 migration; the therapist
+  client hub reads the same envelope for adherence and latest observations.
 
 ## 1. Confirmed Product Direction
 
@@ -91,9 +126,19 @@ The division of responsibility is intentional:
 
 ### Patient workflow
 
-The patient opens their program page and grants camera access. MediaPipe processes the pose locally in the browser. The page counts repetitions, evaluates configured movement rules, displays the skeleton overlay, and provides short real-time cues.
+The patient opens their program page and grants camera access. MediaPipe
+processes the pose locally in the browser. The page counts repetitions,
+evaluates configured movement rules, displays the skeleton overlay, and owns
+all time-critical feedback: immediate visual state, a short local earcon for a
+completed repetition, and optional English speech only at set milestones.
 
-The agent uses WebMCP to start a set, receive structured set results, interpret the results, adjust the next set within therapist-defined limits, and finish the session report.
+The browser handles the active set without an agent in the loop. After the set
+ends, the patient can ask the agent how it went; WebMCP then returns one concise
+browser-derived aggregate for interpretation. Future patient-route tools may
+stage a visible coaching focus for the next set, but the agent does not start
+the camera, monitor repetitions, poll frames, speak on each repetition, advise
+deeper range without a therapist-approved target, or autonomously change the
+confirmed dosage. Any staged change remains a human-reviewed UI action.
 
 The patient workflow is the main WebMCP differentiator because the relevant live page state and locally derived motion metrics exist inside the browser. Raw video is not uploaded or exposed to the agent.
 
@@ -118,13 +163,15 @@ Data and safety boundaries
 ```
 
 This ordering keeps the therapist-side product and its authority boundaries
-stable before patient-agent orchestration and release. The already completed
+stable before the patient cognitive layer and release. The already completed
 patient fallback and motion-engine foundations remain intact; Phase 4.5 is now
 locally verified, with its deployed-origin gate still pending.
 
-## 3. Architectural Principle: Reflex Layer and Cognitive Layer
+## 3. Architectural Principle: Reflex, Event-Cue, and Cognitive Layers
 
-WebMCP should not be treated as a high-frequency streaming transport. The agent must not read joint angles on every camera frame.
+WebMCP should not be treated as a high-frequency streaming transport. The
+agent must not read joint angles on every camera frame or sit in the critical
+path for counting, safety, or audio timing.
 
 ### Browser reflex layer
 
@@ -134,21 +181,36 @@ Runs at frame or near-frame speed:
 - Landmark confidence and smoothing
 - Joint-angle calculation
 - Rep state machine
-- Immediate safety state
-- Short on-screen cues
-- Browser TTS cues such as “Raise your arm a little higher”
+- Immediate safety and stop state
+- Immediate on-screen feedback
+- A short Web Audio earcon when a repetition is accepted
+
+### Browser event-cue layer
+
+Runs only when the reflex layer emits a meaningful event:
+
+- Optional English speech at halfway, last repetition, and set completion;
+  never one utterance for every repetition
+- Low-frequency visual coaching for a persistent quality issue rather than
+  narration of transient frame noise
+- A user-gesture-armed audio coordinator that plays unqueued earcons, replaces
+  stale milestone speech, and tags delayed work with a set-generation
+  identifier so audio from a stopped or previous set cannot leak into the
+  current one. Persistent quality coaching will add priority, expiry,
+  deduplication, and per-cue cooldowns.
+- Safety and Stop preempt lower-priority audio and remain locally enforceable
+  even when speech synthesis is unavailable
 
 ### Agent cognitive layer
 
-Runs at event, set, and session boundaries:
+Runs after set and session boundaries, in response to the user:
 
-- Read the confirmed prescription
-- Start an exercise set
-- Wait for the browser-led set to finish
-- Interpret set-level summaries
-- Explain performance in natural language
-- Reduce dosage, extend rest, or skip within therapist-defined limits
-- Generate the session and follow-up summaries
+- Read the confirmed prescription and a fixed derived result
+- Prepare a visible, human-reviewed session setup without opening the camera
+- Stay out of the active set; the user asks for review after it ends
+- Interpret persisted set-level summaries
+- Stage one visible next-set coaching focus for human acceptance
+- Generate session and follow-up summaries without changing confirmed dosage
 
 This separation is both more reliable and a stronger competition story than asking an agent to poll raw pose data continuously.
 
@@ -588,7 +650,7 @@ Build the patient session state, persistence, pain, and recovery paths before ad
 
 - A patient can complete a whole session without camera access.
 - Refresh does not erase completed sets.
-- Stop and pain controls always override agent requests.
+- Stop and pain controls always override agent suggestions or tool activity.
 - Partial, skipped, and stopped sets are distinguishable in stored results.
 
 ---
@@ -606,17 +668,28 @@ Validate MediaPipe and the hero movement independently from WebMCP and agent beh
 
 ### Motion modules
 
-- Camera permission and preview
+- Automatic non-streaming camera enumeration and one-time permission setup
+- Selectable labeled devices and exact-device startup
+- Device-change, Stop, disconnected-track, and unmount stream cleanup
 - MediaPipe PoseLandmarker
 - Skeleton overlay
 - Landmark presence and visibility thresholds
-- Smoothing and missing-frame handling
+- Smoothing, side-selection hysteresis, and tracking-loss reset
 - Joint-angle calculation
 - Configurable two-threshold rep state machine
+- Pure configurable set runner with target completion, coarse tracking events,
+  terminal no-op behavior and no camera/React/patient/WebMCP dependencies
 - Quality flags
 - On-screen cues
-- Browser TTS cues
-- Explicitly labeled deterministic demo replay for judge testing
+- Immediate local repetition earcon
+- Opt-in English milestone speech with voice preview and volume control; no
+  per-repetition TTS and no agent-authored speech during an active set
+- Audio coordination with immediate unqueued earcons, latest-wins milestone
+  speech, safe cancellation/close, and set-generation invalidation; persistent
+  quality cues will add priority, expiry, deduplication, and cooldown
+- Deterministic motion fixture for tests only; no production replay control
+- Allowlisted motion-set aggregate shared by human UI and WebMCP projections;
+  no frames, landmarks or per-repetition records
 
 Do not build a general expression or detection DSL in this phase. Use a typed detector configuration. Generalize only when a second real movement proves which abstractions are shared.
 
@@ -625,81 +698,153 @@ Do not build a general expression or detection DSL in this phase. Use a typed de
 - A 5–8 repetition set reaches at least 90% counting accuracy in the defined setup.
 - No more than one false repetition occurs per set.
 - Low confidence, missing landmarks, or the person leaving the frame does not increment the counter.
-- Repeated cues are throttled and understandable.
+- The repetition earcon is immediate and does not wait for speech synthesis.
+- Spoken cues occur only at defined milestones, remain short and English-only,
+  and stale or duplicate cues do not play after Stop or set completion.
 - Raw camera frames do not leave the browser.
+
+The deterministic and camera-domain portions of this gate are covered by the
+current 193-test software baseline. Physical-device behavior and counting
+accuracy are still pending and must be recorded with the
+[user-assisted acceptance checklist](./docs/motion-lab-camera-acceptance.md);
+do not treat automated tests or headless model loading as a real-camera pass.
 
 ---
 
-## Phase 7 — Patient WebMCP and Agent Coaching
+## Phase 7 — Patient WebMCP Cognitive Layer
 
 ### Goal
 
-Connect the stable patient session and motion engine to the agent cognitive layer.
+Connect the stable patient session and motion engine to an event- and
+set-boundary agent layer without placing WebMCP in the real-time motion loop.
+
+### Read-only contract checkpoint
+
+The standalone `/motion-lab` route currently registers only
+`get_latest_motion_lab_set_result` to validate lifecycle, cancellation, strict
+empty input, output cloning, terminal-result availability, interpretation
+boundaries, and privacy allowlisting. Before or during a set it returns a
+recoverable `result_unavailable` error instead of live reps, phase, or tracking
+state. The tool marks its target as `source: "isolated_demo"` and cannot be used
+as a therapist-confirmed patient result. The canonical
+`review_completed_set` tool now lives on `/patient/[code]` after motion
+aggregates, explicit pain/RPE check-in and storage guards were implemented.
+Conflict-safe agent write tools remain deferred.
+
+#### Standalone checkpoint behavior
+
+- Read-only and annotated with `readOnlyHint: true`.
+- Available only after a completed or stopped set has an aggregate and the user
+  requests a review; it is not a monitoring or waiting tool.
+- Returns the route-owned target, actual result, detected repetition window,
+  camera-derived range aggregates, quality-event labels, measurement
+  limitations, privacy boundary, and agent authority constraints.
+- Returns concise allowlisted fields only. It exposes no video frames, images,
+  raw landmarks, raw per-frame angles, patient identifiers, or free-form PII.
+- It refuses calls during an active set with `result_unavailable`. The agent
+  must not poll or retry until the user says the set has ended.
+- The agent may explain observations but may not diagnose, recommend deeper
+  range without a therapist-approved target, or change dosage.
 
 ### Preferred patient tools
 
-#### `get_session_state`
+#### `prepare_motion_session`
 
-- Read-only.
-- Returns today’s confirmed program, completion state, current pain gate, and latest set summaries.
+- Available only while the page is idle and a confirmed exercise target exists.
+- Stages the confirmed target and one coaching focus in a visible preparation
+  panel for human review.
+- It cannot request camera permission, start a set, change dosage, bypass pain,
+  or dismiss Stop state.
+- The human starts the camera set from the UI after accepting the preparation.
 
-#### `run_exercise_set`
+#### `review_completed_set`
 
-- Starts a browser-led camera or timer set.
-- Uses a long-running promise while the page performs the set.
-- Resolves with a structured set summary.
-- Handles the WebMCP execution `AbortSignal`.
+- Read-only and annotated with `readOnlyHint: true`.
+- Implemented on valid patient routes and available only after the browser has
+  persisted a completed or stopped camera result plus explicit RPE/pain.
+- Returns a concise derived summary: confirmed target, actual result, true set
+  duration, detector repetition window, range aggregates, quality labels, RPE,
+  pain, stop reason and continuation safety state.
+- It exposes no frames, raw landmarks, raw time series, or PII.
+- It is annotated `untrustedContentHint: true` because a bounded stop reason may
+  contain patient-entered text.
 
-#### `skip_exercise`
+#### `stage_next_set_focus`
 
-- Records a visible skip and reason.
+- Available only after a set result has been persisted and no pain/stop gate
+  prevents continuation.
+- Stages one short, evidence-linked coaching focus in the visible UI for human
+  acceptance or rejection.
+- It cannot alter repetitions, duration, rest, exercise order, or any other
+  therapist-confirmed dosage field.
+- The accepted focus is recorded separately from the prescription and actual
+  performance.
 
-#### `log_pain`
+#### Optional `end_motion_session`
 
-- Records pain and activates the configured safety gate.
+- Consider only if user testing shows that the existing manual completion UI is
+  insufficient.
+- Register it only when every set is terminal. It may stage a visible summary
+  for review, but cannot stop an active set, discard results, or silently finish
+  the session without human acceptance.
 
-#### `finish_session`
+All tools handle the WebMCP execution `AbortSignal` and reuse the same validated
+domain operations as the human UI.
 
-- Finishes the session and stores the agent-generated summary after all raw set results are already persisted.
+### State-dependent registration
+
+- The standalone route may keep `get_latest_motion_lab_set_result` registered
+  for one stable route lifecycle, but it returns `result_unavailable` while idle
+  or running and never exposes live values.
+- **Idle / ready:** the valid patient route keeps `review_completed_set`
+  registered with no readable result; `prepare_motion_session` remains future.
+- **Set running / awaiting check-in:** the result tool remains unavailable; no start, frame,
+  landmark, angle, counter, cue, or safety mutation tool is registered.
+- **Standalone set terminal:** `get_latest_motion_lab_set_result` becomes
+  readable.
+- **Canonical patient set terminal:** `review_completed_set` becomes readable
+  after persisted check-in; a future release may add `stage_next_set_focus`
+  when safety permits.
+- **Session terminal:** the read tools and optional `end_motion_session`
+
+Registration changes must use one route owner with AbortController cleanup.
+The surface stays small so overlapping tools do not make agent selection less
+reliable.
 
 ### Set result contract
 
-- Prescribed target
-- Agent-adjusted target
+- Therapist-confirmed target
+- Human-accepted preparation or coaching focus, when present
 - Completed repetitions or duration
 - Set duration
 - Range-of-motion summary
+- Tempo and consistency summary
 - Range decline
-- Quality flags
+- Quality-event counts
+- Tracking-loss count
 - RPE
 - Pain
 - Stop reason
 
-### Adjustment rules
+### Authority rules
 
-- The agent may reduce repetitions.
-- The agent may extend rest.
-- The agent may skip a remaining exercise with a recorded reason.
-- The agent may not exceed therapist-confirmed dosage limits.
-- The agent may not override a pain or stop gate.
-- Adjustments must record the original prescription, agent proposal, and actual result separately.
-
-### Long-running fallback decision
-
-Test `run_exercise_set` in ChatGPT’s built-in browser first.
-
-If it is reliable, expose only the long-running tool.
-
-If it is not reliable, replace it with:
-
-- `start_exercise_set`
-- `get_set_result`
-
-Do not expose both orchestration models at the same time because overlapping tools make agent selection less reliable.
+- Counting, cue timing, tracking-loss handling, pain, and Stop remain local.
+- The agent may explain a completed result and stage a next-set coaching focus.
+- The agent may not autonomously change repetitions, duration, rest, exercise
+  order, skip state, or any therapist-confirmed dosage.
+- No tool may request camera permission or start camera capture.
+- A staged focus is visibly labeled, requires human acceptance, and is stored
+  separately from the confirmed prescription and actual result.
+- Pain and Stop gates prevent continuation tools from registering and cannot be
+  overridden by agent text or tool input.
 
 ### Completion gate
 
-The first set’s measured result and RPE must materially change the parameters of the agent’s second set call. The agent must do more than repeat or summarize the returned statistics.
+After a completed set, the agent must use its derived metrics to explain one
+material observation and stage one evidence-linked focus for the next set. The
+user must be able to accept or reject that focus visibly. The demo must show
+that no camera permission, real-time counter, safety gate, or confirmed dosage
+depends on the agent.
 
 ---
 
@@ -713,7 +858,7 @@ Close the prescription, execution, and follow-up loop using actual stored patien
 
 - Completion rate
 - Prescribed versus attempted versus completed dosage
-- Agent-adjusted dosage and reason
+- Agent-proposed coaching focus and human acceptance state
 - Pain trend
 - Quality flags
 - Skipped and stopped exercises
@@ -726,7 +871,7 @@ Add the read-only `get_adherence_summary` tool only after real session data exis
 The therapist UI must preserve and display four distinct sources:
 
 - Therapist-confirmed prescription
-- Agent adjustment
+- Agent coaching suggestion and human acceptance
 - Patient actual performance
 - Reason for a skip, stop, or deviation
 
@@ -778,7 +923,8 @@ The therapist-side agent can generate a follow-up summary from actual patient se
   1. Agent search and visible therapist draft
   2. Therapist edit and confirmation
   3. Browser-led motion sensing
-  4. Agent adjustment based on actual set data
+  4. Agent interpretation and a human-reviewed next-set focus based on actual
+     set data
   5. Therapist follow-up summary
 
 ### Completion gate
@@ -802,7 +948,7 @@ The minimum complete competition product includes:
 - Patient timer fallback
 - One stable camera-tracked movement
 - Immediate browser-side counting and cues
-- Agent set-level interpretation and bounded adjustment
+- Agent set-level interpretation and a visible, human-reviewed next-set focus
 - Pain and stop gates
 - Per-set persistence
 - Therapist adherence summary from real session data
@@ -829,11 +975,14 @@ Do not start these until the complete golden path is stable:
 
 ## 6. Next Implementation Action
 
-The Phase 4.5C–D local software gate is complete. Next, finish the remaining
-Phase 6 user-assisted Motion Lab camera acceptance before implementing patient
-WebMCP orchestration. Camera permission must be explicitly granted; verify
-counting accuracy, framing, side selection, loss-of-tracking and stop behavior
-without saving raw video.
+The patient camera controller, durable checked-in result, canonical
+`review_completed_set` read and therapist feedback projection are implemented.
+The complete therapist-confirmed knee prescription → patient 8/8 OBS set →
+explicit RPE/pain → agent review → therapist 1/2 adherence golden path passed
+locally; see [Patient OBS golden-path evidence](./docs/patient-obs-golden-path.md).
+Per the user's explicit decision, OBS is the provisional integration device;
+physical camera counting, cleanup and external-browser coverage remain release
+gates.
 
 The parallel external-release track still needs an approved public asset
 license/provenance boundary, public repository and HTTPS destination. Once

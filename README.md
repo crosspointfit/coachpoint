@@ -20,7 +20,7 @@ The durable implementation plan is in
 6. Client detail shows the active version, earlier immutable versions and
    attributed activity. Old patient links keep their original dosage.
 
-Six WebMCP tools are split across three leaf-route surfaces:
+Eight WebMCP tools are split across five route surfaces:
 
 | Route | Tool | Effect |
 | --- | --- | --- |
@@ -30,10 +30,14 @@ Six WebMCP tools are split across three leaf-route surfaces:
 | Program editor | `search_exercises` | Read-only structured catalog search. |
 | Program editor | `get_exercise_details` | Read-only timing, precautions and contraindications. |
 | Program editor | `draft_program` | Revision-guarded visible draft only; never confirms or activates it. |
+| `/motion-lab` | `get_latest_motion_lab_set_result` | Reads the latest completed or stopped isolated-demo set aggregate only after the user asks for a review; it cannot monitor the active set and exposes no camera details or raw motion series. |
+| `/patient/[code]` | `review_completed_set` | Reads the latest persisted, checked-in camera set with its therapist-confirmed target, aggregate observations and explicit RPE/pain; it cannot monitor or control the set. |
 
 The editor route is
-`/therapist/clients/[clientId]/programs/[programId]`. Both new read tools accept
-`{}` only: the page, not a supplied identifier, owns their context. They read
+`/therapist/clients/[clientId]/programs/[programId]`. The five route-owned read
+tools—`list_clients`, `get_client_summary`, `get_program_editor_state`, and
+the two post-set motion review tools—accept `{}` only: the page, not a supplied
+identifier, owns their context. They read
 the same hydrated projection as the UI without seeding or writing storage.
 
 Navigation aborts the previous registration owner and its in-flight calls.
@@ -41,20 +45,32 @@ Changing filters or draft dosage does not re-register the route's tools.
 Invalid/cross-client editor routes, the landing page and patient routes expose
 no therapist tools. There is no confirmation, activation or destructive tool.
 
-## Implemented patient fallback flow
+## Implemented patient session flow
 
-The local patient link now supports a complete camera-independent session:
+The local patient link supports both camera and camera-independent completion:
 
 - A confirmed program is snapshotted into ordered sets.
 - Repetition exercises use manual counting; hold exercises use a visible timer.
-- Each state transition is persisted immediately.
+- A therapist-confirmed Supported Half Squat can use browser-local camera
+  sensing with its exact prescribed repetition target.
+- Camera permission, Start and Stop remain explicit human controls, with a
+  first-class manual fallback.
+- A completed/stopped camera aggregate is persisted before an explicit RPE and
+  pain check-in completes the set.
+- Each state transition is validated and persisted before visible state changes.
 - Pause, resume, skip, stop, RPE, and pain reporting are supported.
 - A pain score of 5 or greater activates a non-overridable safety gate and
   stops the active set.
-- Refresh restores the resolved sets and current session state.
+- Refresh restores a versioned, structurally validated session. An interrupted
+  camera attempt returns safely to manual fallback instead of fabricating reps.
 - A summary is created only after every set is completed, skipped, or stopped.
+- `review_completed_set` becomes readable only after camera result persistence
+  and check-in; active or staged sets expose no result.
+- The therapist client hub reads the same validated envelope to show adherence,
+  RPE/pain and the latest checked-in camera observations.
 
-This fallback is intentionally complete before camera sensing is added.
+No video, camera identifier, landmark, raw angle or per-repetition time series
+is stored in the patient session.
 
 ## Isolated motion lab
 
@@ -62,17 +78,84 @@ This fallback is intentionally complete before camera sensing is added.
 
 - MediaPipe Tasks Vision 1.0.1 with self-hosted WASM and lite pose model
 - GPU delegate with CPU fallback
-- Side selection from hip, knee, and ankle landmark visibility
+- Automatic camera enumeration on page load, focus, visibility return and
+  device changes without opening a stream or prompting for permission
+- A visible selector with safe fallback names before permission, real labels
+  after permission, and exact-device startup; there is no Find/Refresh control.
+  When browser privacy hides the full list, the single primary action performs
+  a one-time permission check, releases its temporary stream, and then lets the
+  user choose before starting the set
+- `devicechange`, Stop, failed-start, disconnected-track, and unmount cleanup
+  that stop the active tracks and browser-local processing
+- Side selection from hip, knee, and ankle landmark visibility, with hysteresis
+  to avoid rapid left/right switching
 - Knee-angle calculation and stable-frame rep state machine
+- A reusable pure `HalfSquatSetRunner` that owns target completion,
+  tracking-loss reset and coarse events without camera, React, storage, patient
+  or agent dependencies
+- Tracking-loss reset that discards an incomplete repetition while preserving
+  already completed repetition records
+- A six-repetition camera demo target that ends the set automatically, releases
+  the stream, and creates the browser-derived summary
 - Per-repetition minimum angle, range, duration, and limited-depth flag
+- A clearly labeled detected-repetition window from the first accepted rep to
+  the final accepted rep; it is not presented as total set duration
 - Set-level range-decline summary
-- Deterministic three-repetition replay for judge and CI-style browser checks
-- Optional camera mode with skeleton overlay and spoken rep counts
+- A shared, allowlisted `MotionSetAggregate` used by the Motion Lab WebMCP
+  projection and ready for a future therapist-confirmed patient target
+- A deterministic three-repetition fixture retained for unit and CI checks, not
+  exposed as a production UI control
+- Camera mode with skeleton overlay, an immediate local earcon for an accepted
+  repetition, and opt-in English speech reserved for set milestones rather
+  than queued once per repetition
+- Restrained user-adjustable speech volume, ranked natural-voice selection,
+  and an explicit voice preview
 - Raw video and raw landmark frames are never saved in the summary
 
-The deterministic replay and model loading pass headless Chromium. A real
-camera accuracy run remains a human-assisted verification gate before patient
-WebMCP orchestration is added.
+The current automated suite baseline is 193 passing tests, and the deterministic
+fixture plus model loading pass headless Chromium. These software checks do not
+mean that a physical camera has passed. A user-assisted device, cleanup,
+tracking-loss, and 5–8 repetition accuracy run remains a release gate. Per the
+current development decision, OBS is used for provisional integration while
+physical-device validation is deferred. Follow the
+[Motion Lab camera acceptance checklist](./docs/motion-lab-camera-acceptance.md).
+
+### Motion coaching architecture
+
+Motion Lab intentionally separates three timing layers:
+
+1. The **browser reflex layer** runs MediaPipe, angle calculation, counting,
+   tracking-loss and Stop behavior, visual feedback, and the rep
+   earcon without waiting for an agent or speech synthesis.
+2. The **browser event-cue layer** may speak short English milestones such as
+   halfway, last repetition, and set complete. It does not narrate every rep.
+   The current audio coordinator is armed only by a user gesture, plays earcons
+   without a queue, replaces stale milestone speech, and invalidates delayed
+   work from an older set generation. Persistent quality coaching will add
+   priority, expiry, deduplication, and per-cue cooldowns.
+3. The **WebMCP cognitive layer** interprets a fixed aggregate only after a set
+   ends and the user asks how they did. It has no live session-state or
+   repetition-monitoring surface, never receives frames or raw landmarks, and
+   cannot start the camera, recommend deeper range, or change dosage.
+
+The standalone checkpoint exposes only
+`get_latest_motion_lab_set_result`. The canonical patient route now exposes
+`review_completed_set` after persistence and explicit check-in. Future work may
+add `prepare_motion_session` and `stage_next_set_focus`, with an optional
+terminal-only `end_motion_session`.
+There will be no WebMCP motion-monitoring tool during an active set.
+
+The first read-only contract checkpoint is implemented on `/motion-lab` as
+`get_latest_motion_lab_set_result`. Before a result exists it returns a
+recoverable `result_unavailable` response instead of exposing live state. Its
+target is explicitly labeled `source: "isolated_demo"`; it is not presented as
+a therapist-confirmed patient set. The remaining cognitive tools stay gated on
+patient-route persistence, pain/RPE check-in, and immutable aggregate results.
+
+After completing a Motion Lab set, ask the browser agent:
+
+> How did I do in that set? Use `get_latest_motion_lab_set_result` and explain
+> the result in plain language.
 
 ## Suggested site-tools prompt
 
@@ -115,12 +198,25 @@ The current therapist checkpoint has passed:
 - npm production dependency audit
 - Headless runtime, network, image, layout, and basic accessibility checks
 - Manual add, edit/reorder, confirm, patient-link, and local persistence probes
-- Native Codex in-app Browser discovery and invocation of all six route tools
+- Native Codex in-app Browser discovery and invocation of the route-owned tools;
+  eight tools are now implemented across five surfaces
 - Route cleanup showing no WebMCP tools on the landing page
 - Same-browser therapist confirmation through patient-session completion
 - Patient pain-gate and in-app Browser refresh-recovery probes
 - Motion-engine unit tests, deterministic three-repetition browser replay, and
   self-hosted MediaPipe GPU runtime/model load
+- Permission-first camera-domain, exact-device constraint, device fallback,
+  tracking-loss reset, side-hysteresis, and terminal-only result-tool tests;
+  `npm test` currently reports 193 passing tests
+- Native post-set Motion Lab WebMCP verification: pre-set reads return
+  `result_unavailable`, while a fresh 6/6 OBS demo result is available only
+  after completion with no raw frames, landmarks, or time series
+- Patient camera controller, confirmed-target matching, awaiting-check-in,
+  pain/Stop race, versioned storage, patient `review_completed_set`, and
+  therapist adherence projection contract tests
+- Complete therapist-confirmed OBS golden path: 8/8 patient camera set,
+  persisted RPE/pain, agent review and therapist 1/2 adherence readback; see
+  [Patient OBS golden-path evidence](./docs/patient-obs-golden-path.md)
 - Phase 4.5: three consecutive isolated, native-WebMCP workflows on one
   production build, with simulated therapist UI edits/confirmation, immutable
   patient links, client isolation, reload and back/forward recovery
@@ -139,6 +235,8 @@ verification. The ordinary-browser check also confirms manual mode without WebMC
 | `src/lib/webmcp/` | Direct registration, schemas, execution boundaries, React lifecycle. |
 | `src/lib/caseloadStorage.ts` | V2 client/program persistence, migration and immutable versions. |
 | `src/lib/therapistStorage.ts` | Legacy compatibility and same-browser patient version lookup. |
+| `src/lib/patientStorage.ts` | Versioned, route-bound patient session validation, V1 migration and clone-safe persistence. |
+| `src/motion/` | Browser-local camera discovery, pose analysis and half-squat state machine. |
 | `tests/` | Deterministic domain and WebMCP contract tests. |
 
 ## Challenge provenance
@@ -163,3 +261,4 @@ prescription.
 - Create the public repository and HTTPS deployment.
 - Verify the deployed origin in both the built-in browser and WebMCP-enabled
   Chrome before submission.
+- Complete and record the user-assisted real-camera Motion Lab acceptance gate.

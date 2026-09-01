@@ -1,4 +1,5 @@
 import type { CoachingMode } from "./types.ts";
+import type { MotionSetAggregate } from "../motion/set-aggregate.ts";
 
 export type PatientSessionStatus =
   | "not_started"
@@ -9,7 +10,7 @@ export type PatientSessionStatus =
 
 export type PatientSetStatus = "planned" | "active" | "completed" | "skipped" | "stopped";
 
-export type PatientSetMode = "timer" | "manual";
+export type PatientSetMode = "timer" | "manual" | "camera";
 
 export type SetCompletionKind = "full" | "partial";
 
@@ -32,9 +33,21 @@ export interface PrescribedSetTarget {
 export interface SetActualCompletion {
   readonly completedReps?: number;
   readonly completedHoldSeconds?: number;
+  /**
+   * Total wall-clock set duration derived from domain-owned ISO timestamps.
+   * This is deliberately distinct from the detector's repetition window.
+   */
   readonly durationSeconds: number;
   readonly rpe?: number;
   readonly pain?: number;
+  readonly motion?: MotionSetAggregate;
+}
+
+export interface PatientMotionAttempt {
+  readonly status: "awaiting_check_in";
+  readonly stagedAt: string;
+  readonly aggregate: MotionSetAggregate;
+  readonly stopReason?: string;
 }
 
 export interface PatientExerciseSet {
@@ -54,6 +67,7 @@ export interface PatientExerciseSet {
   readonly skippedAt?: string;
   readonly completionKind?: SetCompletionKind;
   readonly actual?: SetActualCompletion;
+  readonly motionAttempt?: PatientMotionAttempt;
   readonly stopReason?: string;
   readonly skipReason?: string;
 }
@@ -139,6 +153,25 @@ export interface CompleteExerciseSetInput {
   readonly durationSeconds: number;
   readonly rpe?: number;
   readonly pain?: number;
+}
+
+export interface StageMotionSetResultInput {
+  readonly setId: string;
+  readonly aggregate: MotionSetAggregate;
+  /** Required when the terminal detector outcome is `stopped`. */
+  readonly stopReason?: string;
+}
+
+export interface CompleteMotionSetCheckInInput {
+  readonly setId: string;
+  /** Camera completion requires an explicit, validated patient check-in. */
+  readonly rpe: number;
+  /** Camera completion requires an explicit, validated patient check-in. */
+  readonly pain: number;
+}
+
+export interface SwitchActiveCameraSetToManualFallbackInput {
+  readonly setId: string;
 }
 
 export interface SkipExerciseInput {

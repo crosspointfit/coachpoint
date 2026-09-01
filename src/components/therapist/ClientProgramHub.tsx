@@ -20,11 +20,17 @@ import type {
   TherapistProgramRecord,
 } from "@/domain/caseload";
 import {
+  getSessionProgress,
+  projectLatestPatientMotionResult,
+  type PatientSession,
+} from "@/domain";
+import {
   selectClientView,
   selectClientProgramView,
   type ClientProgramView,
 } from "@/domain/caseload-views";
 import { createProgramForClient } from "@/lib/caseloadStorage";
+import { readPatientSession } from "@/lib/patientStorage";
 import { useCaseloadSnapshot } from "@/lib/use-caseload-snapshot";
 import {
   createClientToolDescriptors,
@@ -159,6 +165,39 @@ export default function ClientProgramHub({
     recentActivity,
     clientStatusLabel: clientStatus,
   } = view ?? selectClientProgramView(initialClient, []);
+  const activePatientCode = activeConfirmedProgram?.code ?? null;
+  const [patientSession, setPatientSession] = useState<PatientSession | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      if (!active) return;
+      setPatientSession(
+        activePatientCode ? readPatientSession(activePatientCode) : null,
+      );
+    };
+    const hydrationTimer = window.setTimeout(refresh, 0);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      active = false;
+      window.clearTimeout(hydrationTimer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [activePatientCode]);
+
+  const patientProgress = useMemo(
+    () => (patientSession ? getSessionProgress(patientSession) : null),
+    [patientSession],
+  );
+  const latestPatientMotion = useMemo(
+    () =>
+      patientSession
+        ? projectLatestPatientMotionResult(patientSession)
+        : null,
+    [patientSession],
+  );
 
   const startPrescription = () => {
     if (draftProgram) {
@@ -612,6 +651,104 @@ export default function ClientProgramHub({
                 </article>
               </div>
             </section>
+
+            {activeConfirmedProgram && (
+              <section
+                aria-labelledby="patient-progress-heading"
+                className="mt-5 rounded-2xl border border-border bg-white p-5 shadow-[var(--cp-shadow-card)] sm:p-6"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-primary-700">
+                      Patient activity
+                    </p>
+                    <h2
+                      id="patient-progress-heading"
+                      className="mt-1 text-lg font-black tracking-[-0.015em] text-ink-900"
+                    >
+                      Adherence and latest camera result
+                    </h2>
+                  </div>
+                  <Link
+                    href={`/patient/${activeConfirmedProgram.code}`}
+                    className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-xl border border-primary-700 px-4 text-xs font-extrabold text-primary-700 hover:bg-primary-100"
+                  >
+                    Open patient view
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </div>
+
+                {patientSession && patientProgress ? (
+                  <>
+                    <dl className="mt-5 grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-[#FCFCF9] sm:grid-cols-4">
+                      <div className="border-b border-r border-border px-4 py-3 sm:border-b-0">
+                        <dt className="text-[9px] font-bold uppercase text-slate-400">Resolved sets</dt>
+                        <dd className="mt-1 font-mono text-xl font-bold text-ink-900">
+                          {patientProgress.resolvedSets}/{patientProgress.totalSets}
+                        </dd>
+                      </div>
+                      <div className="border-b border-border px-4 py-3 sm:border-b-0 sm:border-r">
+                        <dt className="text-[9px] font-bold uppercase text-slate-400">Completed</dt>
+                        <dd className="mt-1 font-mono text-xl font-bold text-ink-900">
+                          {patientProgress.completedSets}
+                        </dd>
+                      </div>
+                      <div className="border-r border-border px-4 py-3">
+                        <dt className="text-[9px] font-bold uppercase text-slate-400">Skipped / stopped</dt>
+                        <dd className="mt-1 font-mono text-xl font-bold text-ink-900">
+                          {patientProgress.skippedSets + patientProgress.stoppedSets}
+                        </dd>
+                      </div>
+                      <div className="px-4 py-3">
+                        <dt className="text-[9px] font-bold uppercase text-slate-400">Session status</dt>
+                        <dd className="mt-1 text-sm font-extrabold capitalize text-ink-900">
+                          {patientSession.status.replaceAll("_", " ")}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {latestPatientMotion ? (
+                      <div className="mt-4 grid gap-4 rounded-xl border border-primary-100 bg-[#F3FAFD] p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <div>
+                          <p className="text-xs font-extrabold text-ink-900">
+                            Latest: {latestPatientMotion.target.exerciseName}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                            {latestPatientMotion.performance.completedRepetitions}/{latestPatientMotion.target.targetRepetitions} reps · {latestPatientMotion.performance.setDurationSeconds}s set · {latestPatientMotion.measurements.averageDetectedKneeRangeDeg}° average detected range
+                          </p>
+                          {latestPatientMotion.quality.eventLabels.length > 0 && (
+                            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                              Detector notes: {latestPatientMotion.quality.eventLabels.join(" · ").replaceAll("_", " ")}
+                            </p>
+                          )}
+                        </div>
+                        <dl className="grid grid-cols-2 gap-3 text-center">
+                          <div className="rounded-lg bg-white px-4 py-2">
+                            <dt className="text-[9px] font-bold uppercase text-slate-400">RPE</dt>
+                            <dd className="mt-1 font-mono text-lg font-bold text-ink-900">{latestPatientMotion.checkIn.rpe}</dd>
+                          </div>
+                          <div className="rounded-lg bg-white px-4 py-2">
+                            <dt className="text-[9px] font-bold uppercase text-slate-400">Pain</dt>
+                            <dd className="mt-1 font-mono text-lg font-bold text-ink-900">{latestPatientMotion.checkIn.pain}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-xs leading-5 text-slate-500">
+                        No checked-in camera set has been saved for this active prescription yet.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-[#FCFCF9] px-5 py-6 text-center">
+                    <p className="text-sm font-extrabold text-ink-900">No patient session recorded yet</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Progress appears after the patient opens this confirmed program in the same browser.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
 
             <section
               aria-labelledby="history-heading"
