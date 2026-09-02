@@ -24,6 +24,7 @@ const BASE_SESSION: PatientSession = {
     patientLabel: "Synthetic Test Client",
     confirmedAt: TIMESTAMP,
   },
+  transitionRevision: 0,
   status: "not_started",
   sets: [
     {
@@ -44,12 +45,20 @@ const BASE_SESSION: PatientSession = {
     },
   ],
   painEvents: [],
+  coachingFocuses: [],
   safetyGate: {
     active: false,
     threshold: 5,
   },
   createdAt: TIMESTAMP,
 };
+
+function legacySessionWithoutTransitionFields(): Record<string, unknown> {
+  const legacy = clone(BASE_SESSION) as unknown as Record<string, unknown>;
+  delete legacy.transitionRevision;
+  delete legacy.coachingFocuses;
+  return legacy;
+}
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -198,6 +207,46 @@ function motionAggregate() {
   } as const;
 }
 
+function focusReadySession(): PatientSession {
+  const completed = completedSession();
+  const basedOn = {
+    ...completed.sets[0]!,
+    mode: "camera" as const,
+    actual: {
+      ...completed.sets[0]!.actual!,
+      motion: motionAggregate(),
+    },
+  };
+  const target = {
+    ...clone(BASE_SESSION.sets[0]!),
+    id: "set_2",
+    sequence: 1,
+    prescribedTarget: { ...BASE_SESSION.sets[0]!.prescribedTarget },
+  };
+  return {
+    ...clone(BASE_SESSION),
+    transitionRevision: 5,
+    status: "active",
+    startedAt: TIMESTAMP,
+    sets: [basedOn, target],
+    painEvents: completed.painEvents.map((event) => ({ ...event })),
+    coachingFocuses: [],
+  };
+}
+
+function pendingFocus() {
+  return {
+    id: "focus_1",
+    status: "pending" as const,
+    source: "agent" as const,
+    focusText: "Keep the next set smooth and controlled.",
+    evidenceCode: "range_consistent" as const,
+    basedOnSetId: "set_1",
+    targetSetId: "set_2",
+    stagedAt: "2026-09-01T08:00:40.000Z",
+  };
+}
+
 test("writes a versioned V2 envelope and returns independent read clones", async () => {
   const storage = new MemoryStorage();
   await withStorage(storage, () => {
@@ -227,7 +276,7 @@ test("writes a versioned V2 envelope and returns independent read clones", async
 
 test("migrates a valid V1 raw session and deletes V1 only after V2 commits", async () => {
   const storage = new MemoryStorage();
-  storage.setItem(V1_KEY, JSON.stringify(BASE_SESSION));
+  storage.setItem(V1_KEY, JSON.stringify(legacySessionWithoutTransitionFields()));
 
   await withStorage(storage, () => {
     assert.deepEqual(readPatientSession(CODE), BASE_SESSION);
@@ -237,9 +286,44 @@ test("migrates a valid V1 raw session and deletes V1 only after V2 commits", asy
   });
 });
 
+test("normalizes legacy V2 transition fields and rewrites only the validated envelope", async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(V2_KEY, JSON.stringify({
+    version: 2,
+    programCode: CODE,
+    session: legacySessionWithoutTransitionFields(),
+  }));
+
+  await withStorage(storage, () => {
+    const restored = readPatientSession(CODE);
+    assert.deepEqual(restored, BASE_SESSION);
+    const rewritten = JSON.parse(storage.getItem(V2_KEY) ?? "null") as {
+      session?: Record<string, unknown>;
+    };
+    assert.equal(rewritten.session?.transitionRevision, 0);
+    assert.deepEqual(rewritten.session?.coachingFocuses, []);
+  });
+});
+
+test("a failed legacy V2 normalization rewrite leaves the old envelope intact", async () => {
+  const storage = new MemoryStorage();
+  const legacyEnvelope = JSON.stringify({
+    version: 2,
+    programCode: CODE,
+    session: legacySessionWithoutTransitionFields(),
+  });
+  storage.setItem(V2_KEY, legacyEnvelope);
+  storage.failSetKey = V2_KEY;
+
+  await withStorage(storage, () => {
+    assert.deepEqual(readPatientSession(CODE), BASE_SESSION);
+    assert.equal(storage.getItem(V2_KEY), legacyEnvelope);
+  });
+});
+
 test("keeps valid V1 data readable and intact when its V2 migration write fails", async () => {
   const storage = new MemoryStorage();
-  storage.setItem(V1_KEY, JSON.stringify(BASE_SESSION));
+  storage.setItem(V1_KEY, JSON.stringify(legacySessionWithoutTransitionFields()));
   storage.failSetKey = V2_KEY;
 
   await withStorage(storage, () => {
@@ -271,7 +355,7 @@ test("rejects cross-code writes and cross-code V2 envelopes", async () => {
 
 test("a corrupt V2 value is rejected without rolling back to a valid V1 session", async () => {
   const storage = new MemoryStorage();
-  storage.setItem(V1_KEY, JSON.stringify(BASE_SESSION));
+  storage.setItem(V1_KEY, JSON.stringify(legacySessionWithoutTransitionFields()));
   storage.setItem(V2_KEY, JSON.stringify({
     version: 2,
     programCode: CODE,
@@ -356,6 +440,7 @@ test("accepts only the allowlisted aggregate in motionAttempt and actual.motion"
     assert.equal(writePatientSession(CODE, pending), true);
 
     const resolved = completedSession();
+    Object.assign(resolved, { transitionRevision: 1 });
     Object.assign(resolved.sets[0]!, { mode: "camera" });
     Object.assign(resolved.sets[0]!.actual!, { motion: motionAggregate() });
     assert.equal(writePatientSession(CODE, resolved), true);
@@ -373,6 +458,120 @@ test("accepts only the allowlisted aggregate in motionAttempt and actual.motion"
     }).motionAttempt.aggregate.target;
     target.exerciseId = "foreign-exercise";
     assert.equal(writePatientSession(CODE, wrongTarget), false);
+  });
+});
+
+test("enforces monotonic revisions and append-only focus decisions", async () => {
+  const storage = new MemoryStorage();
+  await withStorage(storage, () => {
+    const base = focusReadySession();
+    assert.equal(writePatientSession(CODE, base), true);
+    assert.equal(writePatientSession(CODE, clone(base)), true);
+
+    const staged: PatientSession = {
+      ...clone(base),
+      transitionRevision: 6,
+      coachingFocuses: [pendingFocus()],
+    };
+    assert.equal(writePatientSession(CODE, staged), true);
+
+    const accepted: PatientSession = {
+      ...clone(staged),
+      transitionRevision: 7,
+      coachingFocuses: [{
+        ...pendingFocus(),
+        status: "accepted",
+        decidedAt: "2026-09-01T08:00:50.000Z",
+      }],
+    };
+    assert.equal(writePatientSession(CODE, accepted), true);
+
+    assert.equal(writePatientSession(CODE, { ...clone(accepted), transitionRevision: 6 }), false);
+    assert.equal(writePatientSession(CODE, {
+      ...clone(accepted),
+      transitionRevision: 8,
+      coachingFocuses: [],
+    }), false);
+    assert.equal(writePatientSession(CODE, {
+      ...clone(accepted),
+      transitionRevision: 8,
+      coachingFocuses: [{
+        ...accepted.coachingFocuses[0]!,
+        focusText: "Changed after staging",
+      }],
+    }), false);
+    assert.equal(writePatientSession(CODE, {
+      ...clone(accepted),
+      transitionRevision: 8,
+      coachingFocuses: [pendingFocus()],
+    }), false);
+  });
+});
+
+test("validates focus revision, status timestamps, unique IDs and set references", async () => {
+  const storage = new MemoryStorage();
+  await withStorage(storage, () => {
+    const base = focusReadySession();
+    assert.equal(writePatientSession(CODE, { ...clone(base), transitionRevision: -1 }), false);
+
+    const valid = {
+      ...clone(base),
+      transitionRevision: 6,
+      coachingFocuses: [pendingFocus()],
+    } as PatientSession;
+    assert.equal(isPatientSession(valid, CODE), true);
+
+    const pendingWithDecision = clone(valid);
+    Object.assign(pendingWithDecision.coachingFocuses[0]!, {
+      decidedAt: "2026-09-01T08:00:50.000Z",
+    });
+    assert.equal(isPatientSession(pendingWithDecision, CODE), false);
+
+    const acceptedWithoutDecision = clone(valid);
+    Object.assign(acceptedWithoutDecision.coachingFocuses[0]!, {
+      status: "accepted",
+    });
+    assert.equal(isPatientSession(acceptedWithoutDecision, CODE), false);
+
+    const duplicate = {
+      ...clone(valid),
+      coachingFocuses: [pendingFocus(), pendingFocus()],
+    } as PatientSession;
+    assert.equal(isPatientSession(duplicate, CODE), false);
+
+    const dangling = clone(valid);
+    Object.assign(dangling.coachingFocuses[0]!, {
+      targetSetId: "missing_set",
+    });
+    assert.equal(isPatientSession(dangling, CODE), false);
+
+    const wrongBasedOn = clone(valid);
+    Object.assign(wrongBasedOn.coachingFocuses[0]!, {
+      basedOnSetId: "set_2",
+      targetSetId: "set_1",
+    });
+    assert.equal(isPatientSession(wrongBasedOn, CODE), false);
+  });
+});
+
+test("coaching focus values remain deeply cloned after V2 reads", async () => {
+  const storage = new MemoryStorage();
+  await withStorage(storage, () => {
+    const session: PatientSession = {
+      ...focusReadySession(),
+      transitionRevision: 6,
+      coachingFocuses: [pendingFocus()],
+    };
+    assert.equal(writePatientSession(CODE, session), true);
+    const first = readPatientSession(CODE);
+    assert.ok(first);
+    if (!first) return;
+    (first.coachingFocuses[0] as { focusText: string }).focusText = "MUTATED";
+    const second = readPatientSession(CODE);
+    assert.equal(
+      second?.coachingFocuses[0]?.focusText,
+      pendingFocus().focusText,
+    );
   });
 });
 

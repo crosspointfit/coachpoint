@@ -2,15 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  acceptNextSetFocus,
   completeMotionSetCheckIn,
   completeExerciseSet,
   createPatientSession,
+  dismissNextSetFocus,
   finishSession,
   getSessionProgress,
   logPain,
   pauseSession,
   resumeSession,
   skipExercise,
+  stageNextSetFocus,
   stageMotionSetResult,
   startExerciseSet,
   stopSession,
@@ -111,6 +114,7 @@ function motionAggregate(options: {
   completedRepetitions?: number;
   targetRepetitions?: number;
   source?: "isolated_demo" | "therapist_confirmed";
+  qualityFlags?: string[];
 } = {}): MotionSetAggregate {
   const completedRepetitions = options.completedRepetitions ?? 8;
   return createMotionSetAggregate({
@@ -127,7 +131,7 @@ function motionAggregate(options: {
       averageRangeDeg: 47.2,
       rangeDeclineDeg: 4.1,
       averageMinAngleDeg: 121.6,
-      qualityFlags: ["limited_depth"],
+      qualityFlags: options.qualityFlags ?? ["limited_depth"],
       reps: [
         {
           rep: 1,
@@ -144,6 +148,52 @@ function motionAggregate(options: {
   });
 }
 
+function makeCheckedInCameraSession(options: {
+  aggregate?: MotionSetAggregate;
+  rpe?: number;
+  pain?: number;
+} = {}) {
+  const fixture = makeCameraSession(
+    sequenceFactory(
+      "2026-08-28T08:00:00.000Z",
+      "2026-08-28T08:00:05.000Z",
+      "2026-08-28T08:00:35.000Z",
+      "2026-08-28T08:00:40.000Z",
+      "2026-08-28T08:00:45.000Z",
+      "2026-08-28T08:00:50.000Z",
+    ),
+  );
+  const started = startExerciseSet(
+    fixture.session,
+    { setId: fixture.session.sets[0]!.id, mode: "camera" },
+    fixture.factory,
+  );
+  assert.equal(started.ok, true);
+  if (!started.ok) throw new Error("camera start fixture failed");
+  const staged = stageMotionSetResult(
+    started.value,
+    {
+      setId: started.value.sets[0]!.id,
+      aggregate: options.aggregate ?? motionAggregate(),
+    },
+    fixture.factory,
+  );
+  assert.equal(staged.ok, true);
+  if (!staged.ok) throw new Error("camera stage fixture failed");
+  const checkedIn = completeMotionSetCheckIn(
+    staged.value,
+    {
+      setId: staged.value.sets[0]!.id,
+      rpe: options.rpe ?? 8,
+      pain: options.pain ?? 1,
+    },
+    fixture.factory,
+  );
+  assert.equal(checkedIn.ok, true);
+  if (!checkedIn.ok) throw new Error("camera check-in fixture failed");
+  return { session: checkedIn.value, factory: fixture.factory };
+}
+
 function makeSession() {
   idCounter = 0;
   const result = createPatientSession(PROGRAM, factory);
@@ -155,6 +205,8 @@ function makeSession() {
 test("creates a serializable planned session from a confirmed program", () => {
   const session = makeSession();
   assert.equal(session.status, "not_started");
+  assert.equal(session.transitionRevision, 0);
+  assert.deepEqual(session.coachingFocuses, []);
   assert.equal(session.sets.length, 3);
   const roundTrip = JSON.parse(JSON.stringify(session));
   assert.equal(JSON.stringify(roundTrip), JSON.stringify(session));
@@ -173,6 +225,95 @@ test("creates a serializable planned session from a confirmed program", () => {
     nextSetId: "set_2",
     isFinishable: false,
   });
+});
+
+test("every successful state-changing session operation advances one transition revision", () => {
+  const session = makeSession();
+  assert.equal(session.transitionRevision, 0);
+
+  const started = startExerciseSet(
+    session,
+    { setId: session.sets[0]!.id, mode: "manual" },
+    factory,
+  );
+  assert.equal(started.ok, true);
+  if (!started.ok) return;
+  assert.equal(started.value.transitionRevision, 1);
+
+  const paused = pauseSession(started.value, factory);
+  assert.equal(paused.ok, true);
+  if (!paused.ok) return;
+  assert.equal(paused.value.transitionRevision, 2);
+
+  const resumed = resumeSession(paused.value);
+  assert.equal(resumed.ok, true);
+  if (!resumed.ok) return;
+  assert.equal(resumed.value.transitionRevision, 3);
+
+  const completed = completeExerciseSet(
+    resumed.value,
+    {
+      setId: resumed.value.sets[0]!.id,
+      completedReps: 8,
+      durationSeconds: 30,
+      rpe: 3,
+      pain: 1,
+    },
+    factory,
+  );
+  assert.equal(completed.ok, true);
+  if (!completed.ok) return;
+  assert.equal(completed.value.transitionRevision, 4);
+
+  const skipped = skipExercise(
+    completed.value,
+    {
+      exerciseId: "shoulder-flexion-stick",
+      reason: "Resolve the remaining synthetic set.",
+    },
+    factory,
+  );
+  assert.equal(skipped.ok, true);
+  if (!skipped.ok) return;
+  assert.equal(skipped.value.transitionRevision, 5);
+
+  const hold = skipped.value.sets.find((set) => set.status === "planned");
+  assert.ok(hold);
+  if (!hold) return;
+  const holdStarted = startExerciseSet(
+    skipped.value,
+    { setId: hold.id, mode: "timer" },
+    factory,
+  );
+  assert.equal(holdStarted.ok, true);
+  if (!holdStarted.ok) return;
+  assert.equal(holdStarted.value.transitionRevision, 6);
+
+  const pain = logPain(
+    holdStarted.value,
+    { pain: 1, note: "Low synthetic pain report." },
+    factory,
+  );
+  assert.equal(pain.ok, true);
+  if (!pain.ok) return;
+  assert.equal(pain.value.transitionRevision, 7);
+
+  const stopped = stopSession(
+    pain.value,
+    { reason: "Patient stopped the synthetic session." },
+    factory,
+  );
+  assert.equal(stopped.ok, true);
+  if (!stopped.ok) return;
+  assert.equal(stopped.value.transitionRevision, 8);
+
+  const failed = startExerciseSet(
+    stopped.value,
+    { setId: hold.id, mode: "manual" },
+    factory,
+  );
+  assert.equal(failed.ok, false);
+  assert.equal(stopped.value.transitionRevision, 8);
 });
 
 test("starts and completes a set without mutating the prior session", () => {
@@ -302,9 +443,11 @@ test("stopping the session resolves the active set as stopped", () => {
 test("finishes only after every set is resolved and produces a summary", () => {
   let session = makeSession();
   for (const set of session.sets) {
+    const beforeStartRevision = session.transitionRevision;
     const start = startExerciseSet(session, { setId: set.id, mode: "manual" }, factory);
     assert.equal(start.ok, true);
     if (!start.ok) return;
+    assert.equal(start.value.transitionRevision, beforeStartRevision + 1);
     const complete = completeExerciseSet(
       start.value,
       {
@@ -319,12 +462,17 @@ test("finishes only after every set is resolved and produces a summary", () => {
     );
     assert.equal(complete.ok, true);
     if (!complete.ok) return;
+    assert.equal(
+      complete.value.transitionRevision,
+      start.value.transitionRevision + 1,
+    );
     session = complete.value;
   }
   assert.equal(getSessionProgress(session).isFinishable, true);
   const finished = finishSession(session, factory);
   assert.equal(finished.ok, true);
   if (!finished.ok) return;
+  assert.equal(finished.value.transitionRevision, session.transitionRevision + 1);
   assert.equal(finished.value.status, "completed");
   assert.equal(finished.value.summary?.completedSets, 3);
   assert.equal(finished.value.summary?.averageRpe, 3);
@@ -390,6 +538,7 @@ test("switches one active camera set to manual fallback without changing its pre
   );
   assert.equal(started.ok, true);
   if (!started.ok) return;
+  assert.equal(started.value.transitionRevision, 1);
   const before = structuredClone(started.value.sets[0]!);
 
   const fallback = switchActiveCameraSetToManualFallback(started.value, {
@@ -398,6 +547,7 @@ test("switches one active camera set to manual fallback without changing its pre
   assert.equal(fallback.ok, true);
   if (!fallback.ok) return;
   assert.equal(fallback.value.status, "active");
+  assert.equal(fallback.value.transitionRevision, 2);
   assert.equal(fallback.value.sets[0]!.status, "active");
   assert.equal(fallback.value.sets[0]!.mode, "manual");
   assert.equal(fallback.value.sets[0]!.startedAt, before.startedAt);
@@ -425,6 +575,7 @@ test("switches one active camera set to manual fallback without changing its pre
   );
   assert.equal(completed.ok, true);
   if (completed.ok) {
+    assert.equal(completed.value.transitionRevision, 3);
     assert.equal(completed.value.sets[0]!.actual?.motion, undefined);
   }
 });
@@ -480,6 +631,7 @@ test("manual fallback refuses paused, gated, non-camera, and staged camera sets"
   );
   assert.equal(staged.ok, true);
   if (!staged.ok) return;
+  assert.equal(staged.value.transitionRevision, 2);
   const stagedFallback = switchActiveCameraSetToManualFallback(staged.value, {
     setId: staged.value.sets[0]!.id,
   });
@@ -635,6 +787,7 @@ test("camera check-in derives wall-clock duration and keeps detector time distin
   );
   assert.equal(completed.ok, true);
   if (!completed.ok) return;
+  assert.equal(completed.value.transitionRevision, 3);
   const resolved = completed.value.sets[0]!;
   assert.equal(resolved.status, "completed");
   assert.equal(resolved.completionKind, "full");
@@ -920,6 +1073,363 @@ test("global Stop clears an unconsumed camera attempt instead of bypassing check
   assert.equal(staleCompletion.ok, false);
   if (!staleCompletion.ok) {
     assert.equal(staleCompletion.errors[0]?.code, "session_closed");
+  }
+});
+
+test("stages one evidence-linked next-set focus and requires a human decision before start", () => {
+  const checkedIn = makeCheckedInCameraSession();
+  assert.equal(checkedIn.session.transitionRevision, 3);
+  const targetBefore = structuredClone(checkedIn.session.sets[1]!);
+
+  const staged = stageNextSetFocus(
+    checkedIn.session,
+    {
+      expectedTransitionRevision: 3,
+      focusText: "  Keep the next set smooth and controlled.  ",
+      evidenceCode: "target_completed",
+    },
+    checkedIn.factory,
+  );
+  assert.equal(staged.ok, true);
+  if (!staged.ok) return;
+  assert.equal(staged.value.transitionRevision, 4);
+  assert.equal(checkedIn.session.coachingFocuses.length, 0);
+  assert.equal(staged.value.coachingFocuses.length, 1);
+  const focus = staged.value.coachingFocuses[0]!;
+  assert.equal(focus.status, "pending");
+  assert.equal(focus.source, "agent");
+  assert.equal(focus.focusText, "Keep the next set smooth and controlled.");
+  assert.equal(focus.evidenceCode, "target_completed");
+  assert.equal(focus.basedOnSetId, staged.value.sets[0]!.id);
+  assert.equal(focus.targetSetId, staged.value.sets[1]!.id);
+  assert.equal(focus.decidedAt, undefined);
+
+  const blockedStart = startExerciseSet(
+    staged.value,
+    { setId: staged.value.sets[1]!.id, mode: "manual" },
+    checkedIn.factory,
+  );
+  assert.equal(blockedStart.ok, false);
+  if (!blockedStart.ok) {
+    assert.equal(blockedStart.errors[0]?.code, "focus_decision_required");
+  }
+  assert.equal(staged.value.transitionRevision, 4);
+
+  const accepted = acceptNextSetFocus(
+    staged.value,
+    { focusId: focus.id, expectedTransitionRevision: 4 },
+    checkedIn.factory,
+  );
+  assert.equal(accepted.ok, true);
+  if (!accepted.ok) return;
+  assert.equal(accepted.value.transitionRevision, 5);
+  assert.equal(accepted.value.coachingFocuses.length, 1);
+  assert.equal(accepted.value.coachingFocuses[0]!.status, "accepted");
+  assert.ok(accepted.value.coachingFocuses[0]!.decidedAt);
+  assert.equal(staged.value.coachingFocuses[0]!.status, "pending");
+  assert.deepEqual(accepted.value.sets[1], targetBefore);
+
+  const allowedStart = startExerciseSet(
+    accepted.value,
+    { setId: accepted.value.sets[1]!.id, mode: "manual" },
+    checkedIn.factory,
+  );
+  assert.equal(allowedStart.ok, true);
+  if (!allowedStart.ok) return;
+  assert.equal(allowedStart.value.transitionRevision, 6);
+  assert.deepEqual(
+    allowedStart.value.sets[1]!.prescribedTarget,
+    targetBefore.prescribedTarget,
+  );
+});
+
+test("human dismissal preserves append-only focus history and permits the target set", () => {
+  const checkedIn = makeCheckedInCameraSession();
+  const staged = stageNextSetFocus(
+    checkedIn.session,
+    {
+      expectedTransitionRevision: checkedIn.session.transitionRevision,
+      focusText: "Keep the detected range consistent.",
+      evidenceCode: "range_consistent",
+    },
+    checkedIn.factory,
+  );
+  assert.equal(staged.ok, true);
+  if (!staged.ok) return;
+  const focus = staged.value.coachingFocuses[0]!;
+  const dismissed = dismissNextSetFocus(
+    staged.value,
+    {
+      focusId: focus.id,
+      expectedTransitionRevision: staged.value.transitionRevision,
+    },
+    checkedIn.factory,
+  );
+  assert.equal(dismissed.ok, true);
+  if (!dismissed.ok) return;
+  assert.equal(
+    dismissed.value.transitionRevision,
+    staged.value.transitionRevision + 1,
+  );
+  assert.equal(dismissed.value.coachingFocuses.length, 1);
+  assert.equal(dismissed.value.coachingFocuses[0]!.id, focus.id);
+  assert.equal(dismissed.value.coachingFocuses[0]!.status, "dismissed");
+  assert.ok(dismissed.value.coachingFocuses[0]!.decidedAt);
+
+  const duplicate = stageNextSetFocus(
+    dismissed.value,
+    {
+      expectedTransitionRevision: dismissed.value.transitionRevision,
+      focusText: "A second suggestion for the same result.",
+      evidenceCode: "target_completed",
+    },
+    checkedIn.factory,
+  );
+  assert.equal(duplicate.ok, false);
+  if (!duplicate.ok) {
+    assert.equal(duplicate.errors[0]?.code, "focus_already_staged");
+  }
+  const allowedStart = startExerciseSet(
+    dismissed.value,
+    { setId: dismissed.value.sets[1]!.id, mode: "manual" },
+    checkedIn.factory,
+  );
+  assert.equal(allowedStart.ok, true);
+});
+
+test("focus evidence is limited to facts supported by the latest checked-in camera result", () => {
+  const highEffort = makeCheckedInCameraSession({ rpe: 8 });
+  const highEffortFocus = stageNextSetFocus(
+    highEffort.session,
+    {
+      expectedTransitionRevision: highEffort.session.transitionRevision,
+      focusText: "Use a calm pace after the reported effort.",
+      evidenceCode: "high_effort",
+    },
+    highEffort.factory,
+  );
+  assert.equal(highEffortFocus.ok, true);
+
+  const lowEffort = makeCheckedInCameraSession({ rpe: 6 });
+  const unsupportedEffort = stageNextSetFocus(
+    lowEffort.session,
+    {
+      expectedTransitionRevision: lowEffort.session.transitionRevision,
+      focusText: "Unsupported high-effort focus.",
+      evidenceCode: "high_effort",
+    },
+    lowEffort.factory,
+  );
+  assert.equal(unsupportedEffort.ok, false);
+  if (!unsupportedEffort.ok) {
+    assert.equal(unsupportedEffort.errors[0]?.code, "unsupported_focus_evidence");
+  }
+
+  const decliningRange = makeCheckedInCameraSession({
+    aggregate: motionAggregate({ qualityFlags: ["range_decline"] }),
+  });
+  const unsupportedConsistency = stageNextSetFocus(
+    decliningRange.session,
+    {
+      expectedTransitionRevision: decliningRange.session.transitionRevision,
+      focusText: "Unsupported range-consistency focus.",
+      evidenceCode: "range_consistent",
+    },
+    decliningRange.factory,
+  );
+  assert.equal(unsupportedConsistency.ok, false);
+  if (!unsupportedConsistency.ok) {
+    assert.equal(
+      unsupportedConsistency.errors[0]?.code,
+      "unsupported_focus_evidence",
+    );
+  }
+
+  const partial = makeCheckedInCameraSession({
+    aggregate: motionAggregate({ completedRepetitions: 3 }),
+  });
+  const unsupportedTarget = stageNextSetFocus(
+    partial.session,
+    {
+      expectedTransitionRevision: partial.session.transitionRevision,
+      focusText: "Unsupported target-completion focus.",
+      evidenceCode: "target_completed",
+    },
+    partial.factory,
+  );
+  assert.equal(unsupportedTarget.ok, false);
+  if (!unsupportedTarget.ok) {
+    assert.equal(unsupportedTarget.errors[0]?.code, "unsupported_focus_evidence");
+  }
+
+  const invalidDepthCode = stageNextSetFocus(
+    lowEffort.session,
+    {
+      expectedTransitionRevision: lowEffort.session.transitionRevision,
+      focusText: "Do not create depth-as-go-deeper evidence.",
+      evidenceCode: "limited_depth" as "target_completed",
+    },
+    lowEffort.factory,
+  );
+  assert.equal(invalidDepthCode.ok, false);
+  if (!invalidDepthCode.ok) {
+    assert.equal(invalidDepthCode.errors[0]?.code, "invalid_evidence_code");
+  }
+});
+
+test("focus staging is revision-guarded, bounded, camera-only, and pain-safe", () => {
+  const checkedIn = makeCheckedInCameraSession();
+  const stale = stageNextSetFocus(
+    checkedIn.session,
+    {
+      expectedTransitionRevision: checkedIn.session.transitionRevision - 1,
+      focusText: "Stale suggestion.",
+      evidenceCode: "target_completed",
+    },
+    checkedIn.factory,
+  );
+  assert.equal(stale.ok, false);
+  if (!stale.ok) {
+    assert.equal(stale.errors[0]?.code, "transition_revision_conflict");
+  }
+  assert.deepEqual(checkedIn.session.coachingFocuses, []);
+
+  for (const focusText of ["   ", "x".repeat(241)]) {
+    const invalid = stageNextSetFocus(
+      checkedIn.session,
+      {
+        expectedTransitionRevision: checkedIn.session.transitionRevision,
+        focusText,
+        evidenceCode: "target_completed",
+      },
+      checkedIn.factory,
+    );
+    assert.equal(invalid.ok, false);
+    if (!invalid.ok) {
+      assert.equal(invalid.errors[0]?.code, "invalid_focus_text");
+    }
+  }
+
+  const staged = stageNextSetFocus(
+    checkedIn.session,
+    {
+      expectedTransitionRevision: checkedIn.session.transitionRevision,
+      focusText: "A pending focus before a pain report.",
+      evidenceCode: "target_completed",
+    },
+    checkedIn.factory,
+  );
+  assert.equal(staged.ok, true);
+  if (!staged.ok) return;
+  const pain = logPain(
+    staged.value,
+    { pain: 5, note: "Pain takes priority over the pending focus." },
+    checkedIn.factory,
+  );
+  assert.equal(pain.ok, true);
+  if (!pain.ok) return;
+
+  const staleAccept = acceptNextSetFocus(
+    pain.value,
+    {
+      focusId: pain.value.coachingFocuses[0]!.id,
+      expectedTransitionRevision: staged.value.transitionRevision,
+    },
+    checkedIn.factory,
+  );
+  assert.equal(staleAccept.ok, false);
+  if (!staleAccept.ok) {
+    assert.equal(staleAccept.errors[0]?.code, "transition_revision_conflict");
+  }
+  const gatedAccept = acceptNextSetFocus(
+    pain.value,
+    {
+      focusId: pain.value.coachingFocuses[0]!.id,
+      expectedTransitionRevision: pain.value.transitionRevision,
+    },
+    checkedIn.factory,
+  );
+  assert.equal(gatedAccept.ok, false);
+  if (!gatedAccept.ok) {
+    assert.equal(gatedAccept.errors[0]?.code, "pain_safety_gate");
+  }
+  const safeDismiss = dismissNextSetFocus(
+    pain.value,
+    {
+      focusId: pain.value.coachingFocuses[0]!.id,
+      expectedTransitionRevision: pain.value.transitionRevision,
+    },
+    checkedIn.factory,
+  );
+  assert.equal(safeDismiss.ok, true);
+  if (safeDismiss.ok) {
+    assert.equal(safeDismiss.value.safetyGate.active, true);
+    assert.equal(safeDismiss.value.status, "paused");
+    assert.equal(safeDismiss.value.coachingFocuses[0]!.status, "dismissed");
+  }
+
+  const manual = makeSession();
+  const manualStart = startExerciseSet(
+    manual,
+    { setId: manual.sets[0]!.id, mode: "manual" },
+    factory,
+  );
+  assert.equal(manualStart.ok, true);
+  if (!manualStart.ok) return;
+  const manualComplete = completeExerciseSet(
+    manualStart.value,
+    {
+      setId: manualStart.value.sets[0]!.id,
+      completedReps: 8,
+      durationSeconds: 30,
+      rpe: 8,
+      pain: 1,
+    },
+    factory,
+  );
+  assert.equal(manualComplete.ok, true);
+  if (!manualComplete.ok) return;
+  const cameraRequired = stageNextSetFocus(
+    manualComplete.value,
+    {
+      expectedTransitionRevision: manualComplete.value.transitionRevision,
+      focusText: "Manual results cannot back a camera focus.",
+      evidenceCode: "high_effort",
+    },
+    factory,
+  );
+  assert.equal(cameraRequired.ok, false);
+  if (!cameraRequired.ok) {
+    assert.equal(
+      cameraRequired.errors[0]?.code,
+      "completed_camera_result_required",
+    );
+  }
+
+  const wrongNext = makeCheckedInCameraSession();
+  const mismatchedNext = {
+    ...wrongNext.session,
+    sets: wrongNext.session.sets.map((set, index) =>
+      index === 1
+        ? { ...set, exerciseId: "heel-raise", exerciseName: "Supported Heel Raise" }
+        : set,
+    ),
+  };
+  const sameExerciseRequired = stageNextSetFocus(
+    mismatchedNext,
+    {
+      expectedTransitionRevision: mismatchedNext.transitionRevision,
+      focusText: "This target belongs to a different exercise.",
+      evidenceCode: "target_completed",
+    },
+    wrongNext.factory,
+  );
+  assert.equal(sameExerciseRequired.ok, false);
+  if (!sameExerciseRequired.ok) {
+    assert.equal(
+      sameExerciseRequired.errors[0]?.code,
+      "same_exercise_next_set_required",
+    );
   }
 });
 

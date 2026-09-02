@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  acceptNextSetFocus,
   completeMotionSetCheckIn,
   completeExerciseSet,
   createPatientSession,
+  dismissNextSetFocus,
   finishSession,
   getExerciseById,
   getSessionProgress,
@@ -26,6 +28,7 @@ import { clearPatientSession, readPatientSession, writePatientSession } from "@/
 import { readConfirmedProgram } from "@/lib/therapistStorage";
 import type { ConfirmedProgram, DomainResult } from "@/domain/types";
 import {
+  createPatientFocusToolDescriptors,
   createPatientMotionToolDescriptors,
   useWebMcpTools,
   type WebMcpToolDescriptor,
@@ -50,6 +53,19 @@ function targetLabel(set: PatientExerciseSet): string {
   return `${set.prescribedTarget.holdSeconds ?? 0} sec hold`;
 }
 
+function coachingEvidenceLabel(code: string): string {
+  switch (code) {
+    case "target_completed":
+      return "Previous set target completed";
+    case "high_effort":
+      return "Previous RPE was 7 or higher";
+    case "range_consistent":
+      return "No within-set range decline was detected";
+    default:
+      return "Previous checked-in set";
+  }
+}
+
 export default function PatientSessionWorkspace({
   code,
 }: PatientSessionWorkspaceProps) {
@@ -69,20 +85,39 @@ export default function PatientSessionWorkspace({
   const sessionRef = useRef<PatientSession | null>(null);
   const cameraPanelRef = useRef<PatientCameraSetPanelHandle | null>(null);
 
+  const commitSession = useCallback((next: PatientSession) => {
+    if (!writePatientSession(code, next)) {
+      setErrors([
+        "The session change could not be saved. No visible progress was changed.",
+      ]);
+      return false;
+    }
+    sessionRef.current = next;
+    setSession(next);
+    setErrors([]);
+    return true;
+  }, [code]);
+
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
       setPatientMotionToolDescriptors(
         loadState === "ready"
-          ? createPatientMotionToolDescriptors(() => sessionRef.current)
+          ? [
+              ...createPatientMotionToolDescriptors(() => sessionRef.current),
+              ...createPatientFocusToolDescriptors({
+                readVisibleSession: () => sessionRef.current,
+                commitVisibleSession: commitSession,
+              }),
+            ]
           : [],
       );
     });
     return () => {
       active = false;
     };
-  }, [loadState]);
+  }, [commitSession, loadState]);
 
   const patientMotionWebMcp = useWebMcpTools(patientMotionToolDescriptors);
 
@@ -170,6 +205,21 @@ export default function PatientSessionWorkspace({
     () => (session ? projectLatestPatientMotionResult(session) : null),
     [session],
   );
+  const pendingCoachingFocus = useMemo(
+    () =>
+      session?.coachingFocuses.find((focus) => focus.status === "pending") ??
+      null,
+    [session],
+  );
+  const acceptedCoachingFocus = useMemo(() => {
+    if (!session || !focusSet) return null;
+    return [...session.coachingFocuses]
+      .reverse()
+      .find(
+        (focus) =>
+          focus.status === "accepted" && focus.targetSetId === focusSet.id,
+      ) ?? null;
+  }, [focusSet, session]);
 
   useEffect(() => {
     if (
@@ -189,14 +239,24 @@ export default function PatientSessionWorkspace({
       setErrors(result.errors.map((item) => item.message));
       return false;
     }
-    if (!writePatientSession(code, result.value)) {
-      setErrors(["The session change could not be saved. No visible progress was changed."]);
-      return false;
-    }
-    sessionRef.current = result.value;
-    setSession(result.value);
-    setErrors([]);
-    return true;
+    return commitSession(result.value);
+  };
+
+  const decidePendingFocus = (decision: "accept" | "dismiss") => {
+    const current = sessionRef.current;
+    const pending = current?.coachingFocuses.find(
+      (focus) => focus.status === "pending",
+    );
+    if (!current || !pending) return;
+    const input = {
+      focusId: pending.id,
+      expectedTransitionRevision: current.transitionRevision,
+    };
+    apply(
+      decision === "accept"
+        ? acceptNextSetFocus(current, input)
+        : dismissNextSetFocus(current, input),
+    );
   };
 
   const startNextSet = () => {
@@ -298,24 +358,27 @@ export default function PatientSessionWorkspace({
   };
 
   const handleCameraTerminal = (
+    originatingSetId: string,
     result: HalfSquatCameraSetTerminalResult,
     stopReason?: string,
-  ) => {
+  ): boolean => {
     const current = sessionRef.current;
-    const currentSet = current?.sets.find((set) => set.status === "active");
-    if (!current || !currentSet || currentSet.mode !== "camera") return;
-    if (
-      apply(
-        stageMotionSetResult(current, {
-          setId: currentSet.id,
-          aggregate: result.aggregate,
-          stopReason,
-        }),
-      )
-    ) {
+    const currentSet = current?.sets.find(
+      (set) => set.id === originatingSetId && set.status === "active",
+    );
+    if (!current || !currentSet || currentSet.mode !== "camera") return false;
+    const saved = apply(
+      stageMotionSetResult(current, {
+        setId: currentSet.id,
+        aggregate: result.aggregate,
+        stopReason,
+      }),
+    );
+    if (saved) {
       setRpe("");
       setPain("");
     }
+    return saved;
   };
 
   const completeCameraCheckIn = () => {
@@ -342,16 +405,12 @@ export default function PatientSessionWorkspace({
       setErrors(["Enter a pain score before recording it."]);
       return;
     }
-    cameraPanelRef.current?.stop("Patient reported pain during the camera set.");
     const current = sessionRef.current;
     if (!current) return;
     apply(
       logPain(current, {
         pain,
-        note:
-          current.sets.find((set) => set.status === "active")?.mode === "camera"
-            ? "Patient-reported during camera set."
-            : "Patient-reported during timer/manual fallback.",
+        note: "Patient-reported during timer/manual fallback.",
       }),
     );
   };
@@ -493,39 +552,22 @@ export default function PatientSessionWorkspace({
             setId={focusSet.id}
             exerciseId={focusSet.exerciseId}
             exerciseName={focusSet.exerciseName}
+            exerciseThumbnailPath={focusExercise.thumbnailPath}
+            setNumber={focusSet.prescribedTarget.setNumber}
+            totalSets={progress.totalSets}
             targetRepetitions={focusSet.prescribedTarget.reps ?? 1}
             setIsActive={activeSet?.id === focusSet.id}
-            disabled={session.status === "paused" || session.safetyGate.active}
+            disabled={
+              session.status === "paused" ||
+              session.safetyGate.active ||
+              pendingCoachingFocus !== null
+            }
+            coachingFocus={acceptedCoachingFocus?.focusText}
             onBeginCameraSet={beginCameraSet}
             onCameraStartFailed={handleCameraStartFailed}
             onTerminal={handleCameraTerminal}
             onUseManualFallback={useManualFallback}
           />
-          {activeSet?.mode === "camera" && (
-            <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-[#E9C98F] bg-[#FFF7E8] p-4">
-              <label className="text-xs font-bold uppercase text-[#765000]">
-                Pain now · 0–10
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={pain}
-                  onChange={(event) =>
-                    setPain(event.target.value === "" ? "" : Number(event.target.value))
-                  }
-                  className="focus-ring mt-1.5 h-10 w-28 rounded-xl border border-[#D7B77D] bg-white text-center font-mono text-lg text-ink-900"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={recordPain}
-                disabled={pain === ""}
-                className="focus-ring min-h-10 rounded-xl border border-warning bg-white px-4 text-sm font-bold text-[#765000] disabled:border-slate-300 disabled:text-slate-400"
-              >
-                End set and record pain
-              </button>
-            </div>
-          )}
           {!activeSet && (
             <div className="mt-4">
               <button
@@ -562,7 +604,7 @@ export default function PatientSessionWorkspace({
             </p>
             <p className="mt-2 text-xs font-semibold text-slate-500">
               {patientMotionWebMcp.status === "ready"
-                ? "Post-set agent review is ready"
+                ? `${patientMotionWebMcp.toolNames.length} post-set agent tools ready`
                 : patientMotionWebMcp.status === "unsupported"
                   ? "Manual browser mode"
                   : patientMotionWebMcp.status === "error"
@@ -613,6 +655,43 @@ export default function PatientSessionWorkspace({
               <ul className="mt-1 list-disc pl-5 text-sm text-slate-700">
                 {errors.map((message) => <li key={message}>{message}</li>)}
               </ul>
+            </section>
+          )}
+
+          {pendingCoachingFocus && (
+            <section className="rounded-[18px] border border-[#E9C98F] bg-[#FFF7E8] p-5 shadow-[var(--cp-shadow-card)]">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#875000]">
+                Agent suggestion · your decision
+              </p>
+              <h2 className="mt-2 text-xl font-extrabold text-ink-900">
+                Focus for the next set
+              </h2>
+              <p className="mt-3 text-base font-bold leading-6 text-ink-900">
+                {pendingCoachingFocus.focusText}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Evidence: {coachingEvidenceLabel(pendingCoachingFocus.evidenceCode)}.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => decidePendingFocus("accept")}
+                  disabled={session.safetyGate.active}
+                  className="focus-ring min-h-11 rounded-xl bg-primary-700 px-5 text-sm font-extrabold text-white disabled:bg-slate-300"
+                >
+                  Accept focus
+                </button>
+                <button
+                  type="button"
+                  onClick={() => decidePendingFocus("dismiss")}
+                  className="focus-ring min-h-11 rounded-xl border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700"
+                >
+                  Dismiss
+                </button>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                This suggestion does not change the therapist-confirmed exercise, repetitions, rest, order, or range.
+              </p>
             </section>
           )}
 
@@ -691,6 +770,16 @@ export default function PatientSessionWorkspace({
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">{focusExercise.position}</p>
                 <p className="mt-5 text-lg font-bold text-ink-900">Target: {targetLabel(focusSet)}</p>
+                {acceptedCoachingFocus && (
+                  <div className="mt-4 rounded-xl border border-primary-200 bg-primary-100/45 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary-700">
+                      Accepted coaching focus
+                    </p>
+                    <p className="mt-1 text-sm font-bold leading-5 text-ink-900">
+                      {acceptedCoachingFocus.focusText}
+                    </p>
+                  </div>
+                )}
                 {showWideCameraArea && (
                   <ol className="mt-6 list-decimal space-y-1 pl-5 text-sm leading-6 text-slate-600">
                     {focusExercise.instructions.map((instruction) => <li key={instruction}>{instruction}</li>)}
@@ -765,67 +854,6 @@ export default function PatientSessionWorkspace({
                     <p className="mt-3 text-xs leading-5 text-slate-500">
                       The camera aggregate is already saved locally. RPE and pain remain explicit patient reports and are never inferred by the model.
                     </p>
-                  </div>
-                ) : cameraEligible && (!activeSet || activeSet.mode === "camera") ? (
-                  <div>
-                    <ol className="mt-6 list-decimal space-y-1 pl-5 text-sm leading-6 text-slate-600">
-                      {focusExercise.instructions.map((instruction) => <li key={instruction}>{instruction}</li>)}
-                    </ol>
-                    <PatientCameraSetPanel
-                      key={focusSet.id}
-                      ref={cameraPanelRef}
-                      setId={focusSet.id}
-                      exerciseId={focusSet.exerciseId}
-                      exerciseName={focusSet.exerciseName}
-                      targetRepetitions={focusSet.prescribedTarget.reps ?? 1}
-                      setIsActive={activeSet?.id === focusSet.id}
-                      disabled={session.status === "paused" || session.safetyGate.active}
-                      onBeginCameraSet={beginCameraSet}
-                      onCameraStartFailed={handleCameraStartFailed}
-                      onTerminal={handleCameraTerminal}
-                      onUseManualFallback={useManualFallback}
-                    />
-                    {activeSet?.mode === "camera" && (
-                      <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-[#E9C98F] bg-[#FFF7E8] p-4">
-                        <label className="text-xs font-bold uppercase text-[#765000]">
-                          Pain now · 0–10
-                          <input
-                            type="number"
-                            min={0}
-                            max={10}
-                            value={pain}
-                            onChange={(event) =>
-                              setPain(event.target.value === "" ? "" : Number(event.target.value))
-                            }
-                            className="focus-ring mt-1.5 h-10 w-28 rounded-xl border border-[#D7B77D] bg-white text-center font-mono text-lg text-ink-900"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={recordPain}
-                          disabled={pain === ""}
-                          className="focus-ring min-h-10 rounded-xl border border-warning bg-white px-4 text-sm font-bold text-[#765000] disabled:border-slate-300 disabled:text-slate-400"
-                        >
-                          End set and record pain
-                        </button>
-                      </div>
-                    )}
-                    {!activeSet && (
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={() => apply(skipExercise(session, { exerciseId: focusSet.exerciseId, reason: skipReason }))}
-                          disabled={session.status === "paused"}
-                          className="focus-ring h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold text-slate-600 disabled:opacity-40"
-                        >
-                          Skip exercise
-                        </button>
-                        <label className="mt-3 block text-xs font-bold text-slate-600">
-                          Visible skip reason
-                          <input value={skipReason} onChange={(event) => setSkipReason(event.target.value)} className="focus-ring mt-1.5 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-normal" />
-                        </label>
-                      </div>
-                    )}
                   </div>
                 ) : activeSet ? (
                   <div className="mt-7">

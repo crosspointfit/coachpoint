@@ -87,9 +87,41 @@ prescription card. During a running set, the large setup area collapses to a
 single compact status bar with camera name, on-device status and human End
 control; the video remains the dominant surface.
 
+## Native next-set focus probe
+
+A fresh two-set session verified the complete cognitive handoff after the first
+checked-in set:
+
+1. `review_completed_set` returned revision 3, 8/8 reps, RPE 8, Pain 0 and
+   continuation allowed.
+2. `stage_next_set_focus` used the supported `high_effort` evidence and staged:
+   “Keep the next set at a calm, controlled pace.”
+3. The write returned revision 4, `humanDecisionRequired: true` and
+   `prescriptionChanged: false`.
+4. The UI showed a pending Agent suggestion with Accept and Dismiss controls.
+5. The human selected Accept. The pending card disappeared, append-only focus
+   history recorded acceptance at revision 5, and the accepted text appeared
+   beside the second set.
+6. The second set remained therapist-confirmed at eight repetitions and camera
+   setup became available. During the running set, the user confirmed that the
+   accepted “Focus: Keep the next set at a calm, controlled pace.” overlay was
+   visible. Exercise, dosage, rest, order and range were not changed by the
+   agent.
+
+The focused second set then completed 8/8 with a 27.29-second wall-clock set,
+26-second detected repetition window, 57.8° average 2D range proxy, 1.4°
+detected range decline, RPE 8 and Pain 0. The saved session reached revision 8
+with no next set. A duplicate write using stale revision 5 was rejected with
+`transition_revision_conflict`, confirming that an older agent observation
+cannot overwrite newer patient activity.
+
+The same closed-session probe confirmed that focus staging fails with
+`session_not_active` when no next set exists. This demonstrates both the
+successful and fail-closed paths.
+
 ## Automated and build evidence
 
-- 193 tests pass.
+- 217 tests pass.
 - ESLint and TypeScript pass.
 - Next.js 16 production build passes with the official `--webpack` fallback.
 - Default Turbopack build was blocked on this task host before compilation

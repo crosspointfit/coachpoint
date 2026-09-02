@@ -88,6 +88,32 @@ export interface PainSafetyGate {
   readonly painEventId?: string;
 }
 
+export type PatientCoachingFocusStatus =
+  | "pending"
+  | "accepted"
+  | "dismissed";
+
+export type PatientCoachingEvidenceCode =
+  | "target_completed"
+  | "high_effort"
+  | "range_consistent";
+
+/**
+ * An append-only agent suggestion record. It is deliberately separate from
+ * both the therapist-confirmed prescription and the patient's actual result.
+ */
+export interface PatientCoachingFocus {
+  readonly id: string;
+  readonly status: PatientCoachingFocusStatus;
+  readonly source: "agent";
+  readonly focusText: string;
+  readonly evidenceCode: PatientCoachingEvidenceCode;
+  readonly basedOnSetId: string;
+  readonly targetSetId: string;
+  readonly stagedAt: string;
+  readonly decidedAt?: string;
+}
+
 export interface PatientSessionProgress {
   readonly totalSets: number;
   readonly plannedSets: number;
@@ -121,9 +147,11 @@ export interface PatientSessionSummary {
 export interface PatientSession {
   readonly id: string;
   readonly program: PatientProgramSnapshot;
+  readonly transitionRevision: number;
   readonly status: PatientSessionStatus;
   readonly sets: readonly PatientExerciseSet[];
   readonly painEvents: readonly PainEvent[];
+  readonly coachingFocuses: readonly PatientCoachingFocus[];
   readonly safetyGate: PainSafetyGate;
   readonly createdAt: string;
   readonly startedAt?: string;
@@ -172,6 +200,17 @@ export interface CompleteMotionSetCheckInInput {
 
 export interface SwitchActiveCameraSetToManualFallbackInput {
   readonly setId: string;
+}
+
+export interface StageNextSetFocusInput {
+  readonly expectedTransitionRevision: number;
+  readonly focusText: string;
+  readonly evidenceCode: PatientCoachingEvidenceCode;
+}
+
+export interface DecideNextSetFocusInput {
+  readonly focusId: string;
+  readonly expectedTransitionRevision: number;
 }
 
 export interface SkipExerciseInput {

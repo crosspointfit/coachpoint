@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -432,4 +433,45 @@ test("dispose invalidates a late camera stream without emitting a terminal resul
   assert.equal(runtime.closeCalls, 1);
   assert.equal(terminalCalls, 0);
   assert.ok(audioCancellations >= 2);
+});
+
+test("hook synchronously applies a same-click camera override and exposes live state", async () => {
+  const source = await readFile(
+    new URL(
+      "../src/components/motion/useHalfSquatCameraSet.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /readonly start:\s*\(\s*selectedCameraIdOverride\?: string \| null,?\s*\) => Promise<boolean>/,
+  );
+  assert.match(
+    source,
+    /readonly getState: \(\) => HalfSquatCameraSetState/,
+  );
+
+  const startBlock = source.slice(
+    source.indexOf("const start = useCallback"),
+    source.indexOf("const stop = useCallback"),
+  );
+  const overrideIndex = startBlock.indexOf("optionsRef.current =");
+  const controllerStartIndex = startBlock.indexOf(
+    "controllerRef.current?.start()",
+  );
+  assert.ok(overrideIndex >= 0);
+  assert.ok(controllerStartIndex > overrideIndex);
+  assert.match(
+    startBlock,
+    /selectedCameraIdOverride !== undefined[\s\S]*selectedCameraId: selectedCameraIdOverride/,
+  );
+  assert.match(
+    source,
+    /controllerRef\.current\?\.getState\(\) \?\? stateRef\.current/,
+  );
+  assert.doesNotMatch(
+    source,
+    /useEffect\([\s\S]{0,400}?controllerRef\.current\?\.(?:prepare|start)\(/,
+  );
 });

@@ -52,7 +52,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   public chrome, including the footer. Ninety-two tests and responsive/browser
   QA pass. Source tokens and visual evidence are recorded in
   `docs/design/pt-hep/` and `design-qa.md`. That count records the homepage
-  checkpoint; the current suite baseline is 193 tests after camera, audio,
+  checkpoint; the current suite baseline is 217 tests after camera, audio,
   reusable runner/aggregate extraction, patient persistence/WebMCP, and the
   therapist feedback projection.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
@@ -80,7 +80,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   the browser reflex path and uses an immediate, non-verbal earcon; speech is
   reserved for a few set milestones rather than queued once per repetition.
   Natural voices rank ahead of novelty voices, an explicit voice choice is
-  persisted, and a preview is available. The current 193-test suite passes; the
+  persisted, and a preview is available. The current 217-test suite passes; the
   test fixture counts three repetitions and the self-hosted GPU runtime/model
   loads in headless Chromium. This is a software baseline, not real-camera
   acceptance. By explicit user decision, OBS is the provisional integration
@@ -105,6 +105,16 @@ Updated after the first implementation checkpoint on 2026-08-28:
   result and is unavailable during active sensing or staged check-in. Patient
   storage uses a versioned structural guard and V1 migration; the therapist
   client hub reads the same envelope for adherence and latest observations.
+- **Phase 7 next-set focus — implemented locally.** Patient sessions carry a
+  monotonic transition revision and append-only coaching-focus history.
+  `stage_next_set_focus` requires the exact revision and supported evidence from
+  the latest checked-in set, stages only visible pending text, and cannot change
+  dosage. The target set is blocked until the patient accepts or dismisses the
+  suggestion; accepted text is shown separately in setup and camera preview.
+- **Phase 8 adherence read — implemented locally.** The client hub registers
+  identity-free `get_adherence_summary`, returning validated progress,
+  aggregate RPE/pain, bounded deviations and the existing safe motion review.
+  It cannot diagnose or modify the prescription or patient session.
 
 ## 1. Confirmed Product Direction
 
@@ -571,8 +581,8 @@ not register a persistent therapist tool set from a shared layout.
 
 Do not add `confirm_program`, `activate_program`, `publish_program`,
 `update_draft_item`, destructive client tools, or navigation-only tools in this
-phase. `get_adherence_summary` remains deferred until Phase 8 has real,
-visible, aggregated session data.
+phase. `get_adherence_summary` was added later in Phase 8 only after real,
+visible, aggregated session data existed.
 
 Each route owns one awaited registration controller. Navigating, refreshing,
 using browser back/forward, switching clients, or remounting must abort the old
@@ -704,7 +714,7 @@ Do not build a general expression or detection DSL in this phase. Use a typed de
 - Raw camera frames do not leave the browser.
 
 The deterministic and camera-domain portions of this gate are covered by the
-current 193-test software baseline. Physical-device behavior and counting
+current 217-test software baseline. Physical-device behavior and counting
 accuracy are still pending and must be recorded with the
 [user-assisted acceptance checklist](./docs/motion-lab-camera-acceptance.md);
 do not treat automated tests or headless model loading as a real-camera pass.
@@ -771,14 +781,17 @@ Conflict-safe agent write tools remain deferred.
 
 #### `stage_next_set_focus`
 
-- Available only after a set result has been persisted and no pain/stop gate
-  prevents continuation.
+- Implemented and available only after a set result has been persisted and no
+  pain/stop gate prevents continuation.
 - Stages one short, evidence-linked coaching focus in the visible UI for human
   acceptance or rejection.
+- Requires the exact `sessionRevision` returned by `review_completed_set`; every
+  successful state mutation increments the revision once.
 - It cannot alter repetitions, duration, rest, exercise order, or any other
   therapist-confirmed dosage field.
-- The accepted focus is recorded separately from the prescription and actual
-  performance.
+- Focus history is append-only. Pending blocks the target set until the human
+  accepts or dismisses it; accepted text is recorded separately from the
+  prescription and actual performance.
 
 #### Optional `end_motion_session`
 
@@ -796,15 +809,17 @@ domain operations as the human UI.
 - The standalone route may keep `get_latest_motion_lab_set_result` registered
   for one stable route lifecycle, but it returns `result_unavailable` while idle
   or running and never exposes live values.
-- **Idle / ready:** the valid patient route keeps `review_completed_set`
-  registered with no readable result; `prepare_motion_session` remains future.
-- **Set running / awaiting check-in:** the result tool remains unavailable; no start, frame,
-  landmark, angle, counter, cue, or safety mutation tool is registered.
+- **Idle / ready:** the valid patient route keeps `review_completed_set` and
+  `stage_next_set_focus` registered; both fail closed without eligible state.
+  `prepare_motion_session` remains future.
+- **Set running / awaiting check-in:** review and focus staging remain
+  unavailable; neither tool exposes a start, frame, landmark, angle, counter,
+  cue, or safety mutation.
 - **Standalone set terminal:** `get_latest_motion_lab_set_result` becomes
   readable.
 - **Canonical patient set terminal:** `review_completed_set` becomes readable
-  after persisted check-in; a future release may add `stage_next_set_focus`
-  when safety permits.
+  after persisted check-in; `stage_next_set_focus` may stage one pending focus
+  only when safety and a same-exercise next set permit it.
 - **Session terminal:** the read tools and optional `end_motion_session`
 
 Registration changes must use one route owner with AbortController cleanup.
@@ -866,7 +881,9 @@ Close the prescription, execution, and follow-up loop using actual stored patien
 
 ### Therapist addition
 
-Add the read-only `get_adherence_summary` tool only after real session data exists.
+The read-only `get_adherence_summary` tool is implemented after real session
+data became available. It reuses the same safe persisted-motion projection and
+adds only bounded adherence and deviation fields.
 
 The therapist UI must preserve and display four distinct sources:
 
@@ -975,14 +992,20 @@ Do not start these until the complete golden path is stable:
 
 ## 6. Next Implementation Action
 
-The patient camera controller, durable checked-in result, canonical
-`review_completed_set` read and therapist feedback projection are implemented.
+The patient camera controller, durable checked-in result, conflict-safe
+`review_completed_set` → `stage_next_set_focus` workflow and therapist
+`get_adherence_summary` are implemented.
 The complete therapist-confirmed knee prescription → patient 8/8 OBS set →
 explicit RPE/pain → agent review → therapist 1/2 adherence golden path passed
 locally; see [Patient OBS golden-path evidence](./docs/patient-obs-golden-path.md).
 Per the user's explicit decision, OBS is the provisional integration device;
 physical camera counting, cleanup and external-browser coverage remain release
 gates.
+
+Next, restart one synthetic two-set session and record a native WebMCP
+stage → visible pending card → human Accept/Dismiss → next-set start probe.
+After that final interaction check, shift to public deployment and submission
+artifacts rather than adding more camera detectors.
 
 The parallel external-release track still needs an approved public asset
 license/provenance boundary, public repository and HTTPS destination. Once

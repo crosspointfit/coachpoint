@@ -2,10 +2,13 @@ import type { ConfirmedProgram, DomainError, DomainResult } from "./types.ts";
 import { getExerciseById } from "./catalog.ts";
 import type { MotionSetAggregate } from "../motion/set-aggregate.ts";
 import type {
+  DecideNextSetFocusInput,
   CompleteMotionSetCheckInInput,
   CompleteExerciseSetInput,
   LogPainInput,
   PainEvent,
+  PatientCoachingEvidenceCode,
+  PatientCoachingFocus,
   PatientExerciseSet,
   PatientMotionAttempt,
   PatientSession,
@@ -14,6 +17,7 @@ import type {
   SessionFactories,
   SessionIdKind,
   SkipExerciseInput,
+  StageNextSetFocusInput,
   StageMotionSetResultInput,
   StartExerciseSetInput,
   StopSessionInput,
@@ -21,6 +25,7 @@ import type {
 } from "./session-types.ts";
 
 export const PAIN_SAFETY_THRESHOLD = 5;
+export const MAX_COACHING_FOCUS_TEXT_LENGTH = 240;
 
 const DEFAULT_FACTORIES: SessionFactories = {
   id: (kind) => `${kind}_${secureUuid()}`,
@@ -105,6 +110,13 @@ function makeId(
       error("factory_failure", `The ${kind} ID factory failed.`, undefined, false),
     );
   }
+}
+
+function makeFocusId(
+  idFactory: SessionFactories["id"],
+): DomainResult<string> {
+  const opaque = makeId(idFactory, "set");
+  return opaque.ok ? success(`focus_${opaque.value}`) : opaque;
 }
 
 function isResolved(status: PatientExerciseSet["status"]): boolean {
@@ -386,6 +398,22 @@ function cloneExerciseSet(set: PatientExerciseSet): PatientExerciseSet {
   };
 }
 
+function cloneCoachingFocus(
+  focus: PatientCoachingFocus,
+): PatientCoachingFocus {
+  return {
+    id: focus.id,
+    status: focus.status,
+    source: "agent",
+    focusText: focus.focusText,
+    evidenceCode: focus.evidenceCode,
+    basedOnSetId: focus.basedOnSetId,
+    targetSetId: focus.targetSetId,
+    stagedAt: focus.stagedAt,
+    decidedAt: focus.decidedAt,
+  };
+}
+
 function setDurationSeconds(
   startedAt: string | undefined,
   completedAt: string,
@@ -420,8 +448,81 @@ function cloneSession(
     sets: (updates.sets ?? session.sets).map(cloneExerciseSet),
     painEvents:
       updates.painEvents ?? session.painEvents.map((event) => ({ ...event })),
+    coachingFocuses: (updates.coachingFocuses ?? session.coachingFocuses).map(
+      cloneCoachingFocus,
+    ),
     safetyGate: updates.safetyGate ?? { ...session.safetyGate },
   };
+}
+
+function transitionSession(
+  session: PatientSession,
+  updates: Partial<PatientSession>,
+): PatientSession {
+  return cloneSession(session, {
+    ...updates,
+    transitionRevision: session.transitionRevision + 1,
+  });
+}
+
+function revisionConflict(
+  session: PatientSession,
+  expectedTransitionRevision: unknown,
+): DomainError | null {
+  if (
+    typeof expectedTransitionRevision !== "number" ||
+    !Number.isInteger(expectedTransitionRevision) ||
+    expectedTransitionRevision < 0
+  ) {
+    return error(
+      "invalid_transition_revision",
+      "A non-negative expected transition revision is required.",
+      "expectedTransitionRevision",
+    );
+  }
+  return expectedTransitionRevision === session.transitionRevision
+    ? null
+    : error(
+        "transition_revision_conflict",
+        `The patient session is now at transition revision ${session.transitionRevision}. Read the latest visible state before retrying.`,
+        "expectedTransitionRevision",
+      );
+}
+
+function latestCheckedInCompletedCameraSet(
+  session: PatientSession,
+): PatientExerciseSet | null {
+  const candidates = session.sets.filter(
+    (set) =>
+      set.status === "completed" &&
+      set.mode === "camera" &&
+      set.motionAttempt === undefined &&
+      set.actual?.motion?.outcome === "completed" &&
+      set.actual.motion.target.source === "therapist_confirmed",
+  );
+  return candidates.sort((left, right) => {
+    const byTime = (left.completedAt ?? "").localeCompare(
+      right.completedAt ?? "",
+    );
+    return byTime || left.sequence - right.sequence;
+  }).at(-1) ?? null;
+}
+
+function evidenceSupportsFocus(
+  basedOn: PatientExerciseSet,
+  evidenceCode: PatientCoachingEvidenceCode,
+): boolean {
+  const actual = basedOn.actual;
+  const motion = actual?.motion;
+  if (!actual || !motion) return false;
+  switch (evidenceCode) {
+    case "target_completed":
+      return motion.actual.targetAchieved;
+    case "high_effort":
+      return typeof actual.rpe === "number" && actual.rpe >= 7;
+    case "range_consistent":
+      return !motion.qualityEventLabels.includes("detected_range_decline");
+  }
 }
 
 export function createPatientSession(
@@ -508,9 +609,11 @@ export function createPatientSession(
       patientLabel: program.patientLabel,
       confirmedAt: program.confirmedAt,
     },
+    transitionRevision: 0,
     status: "not_started",
     sets,
     painEvents: [],
+    coachingFocuses: [],
     safetyGate: {
       active: false,
       threshold: PAIN_SAFETY_THRESHOLD,
@@ -591,6 +694,20 @@ export function startExerciseSet(
     );
   }
   if (
+    session.coachingFocuses.some(
+      (focus) =>
+        focus.status === "pending" && focus.targetSetId === target.id,
+    )
+  ) {
+    return failure(
+      error(
+        "focus_decision_required",
+        "Accept or dismiss the pending coaching focus before starting this set.",
+        "setId",
+      ),
+    );
+  }
+  if (
     input.mode !== "manual" &&
     input.mode !== "timer" &&
     input.mode !== "camera"
@@ -617,7 +734,7 @@ export function startExerciseSet(
   if (!now.ok) return now;
 
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       status: "active",
       startedAt: session.startedAt ?? now.value,
       pausedAt: undefined,
@@ -749,7 +866,7 @@ export function completeExerciseSet(
   }
 
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       status: safetyGate.active ? "paused" : "active",
       pausedAt: safetyGate.active ? now.value : undefined,
       sets: session.sets.map((set) =>
@@ -856,7 +973,7 @@ export function stageMotionSetResult(
   };
 
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       sets: session.sets.map((set) =>
         set.id === target.id
           ? { ...cloneExerciseSet(set), motionAttempt: attempt }
@@ -910,7 +1027,7 @@ export function switchActiveCameraSetToManualFallback(
   }
 
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       sets: session.sets.map((set) =>
         set.id === target.id
           ? { ...cloneExerciseSet(set), mode: "manual" }
@@ -1025,7 +1142,7 @@ export function completeMotionSetCheckIn(
   const safetyGate = { ...painResult.value.safetyGate };
 
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       status: safetyGate.active ? "paused" : "active",
       pausedAt: safetyGate.active ? completedAt.value : undefined,
       sets: session.sets.map((set) => {
@@ -1056,6 +1173,256 @@ export function completeMotionSetCheckIn(
   );
 }
 
+export function stageNextSetFocus(
+  session: PatientSession,
+  input: StageNextSetFocusInput,
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  const conflict = revisionConflict(
+    session,
+    input.expectedTransitionRevision,
+  );
+  if (conflict) return failure(conflict);
+  if (session.safetyGate.active) {
+    return failure(
+      error(
+        "pain_safety_gate",
+        "The pain safety gate is active. No next-set focus can be staged.",
+        "safetyGate",
+      ),
+    );
+  }
+  if (session.status !== "active") {
+    return failure(
+      error(
+        "session_not_active",
+        "A next-set focus can be staged only while the session is active between sets.",
+        "status",
+      ),
+    );
+  }
+  if (session.sets.some((set) => set.status === "active")) {
+    return failure(
+      error(
+        "set_still_active",
+        "Finish the active set and its check-in before staging a next-set focus.",
+        "sets",
+      ),
+    );
+  }
+  if (session.coachingFocuses.some((focus) => focus.status === "pending")) {
+    return failure(
+      error(
+        "focus_decision_required",
+        "The existing pending coaching focus must be accepted or dismissed first.",
+        "coachingFocuses",
+      ),
+    );
+  }
+
+  const basedOn = latestCheckedInCompletedCameraSet(session);
+  if (!basedOn) {
+    return failure(
+      error(
+        "completed_camera_result_required",
+        "A persisted, checked-in completed camera set is required before staging a focus.",
+        "sets",
+      ),
+    );
+  }
+  const target = session.sets.find((set) => set.status === "planned");
+  if (
+    !target ||
+    target.sequence <= basedOn.sequence ||
+    target.exerciseId !== basedOn.exerciseId
+  ) {
+    return failure(
+      error(
+        "same_exercise_next_set_required",
+        "The next planned set must be another set of the same exercise.",
+        "sets",
+      ),
+    );
+  }
+  if (
+    session.coachingFocuses.some(
+      (focus) =>
+        focus.basedOnSetId === basedOn.id && focus.targetSetId === target.id,
+    )
+  ) {
+    return failure(
+      error(
+        "focus_already_staged",
+        "A coaching focus has already been recorded for this result and target set.",
+        "coachingFocuses",
+      ),
+    );
+  }
+
+  const focusText =
+    typeof input.focusText === "string" ? input.focusText.trim() : "";
+  if (
+    !focusText ||
+    focusText.length > MAX_COACHING_FOCUS_TEXT_LENGTH
+  ) {
+    return failure(
+      error(
+        "invalid_focus_text",
+        `Focus text must be between 1 and ${MAX_COACHING_FOCUS_TEXT_LENGTH} characters.`,
+        "focusText",
+      ),
+    );
+  }
+  if (
+    input.evidenceCode !== "target_completed" &&
+    input.evidenceCode !== "high_effort" &&
+    input.evidenceCode !== "range_consistent"
+  ) {
+    return failure(
+      error(
+        "invalid_evidence_code",
+        "The coaching focus must use an allowlisted non-clinical evidence code.",
+        "evidenceCode",
+      ),
+    );
+  }
+  if (!evidenceSupportsFocus(basedOn, input.evidenceCode)) {
+    return failure(
+      error(
+        "unsupported_focus_evidence",
+        "The latest checked-in camera result does not support that coaching evidence.",
+        "evidenceCode",
+      ),
+    );
+  }
+
+  const resolvedFactories = factories(factoryOverrides);
+  const stagedAt = timestamp(resolvedFactories.now);
+  if (!stagedAt.ok) return stagedAt;
+  const focusId = makeFocusId(resolvedFactories.id);
+  if (!focusId.ok) return focusId;
+  const focus: PatientCoachingFocus = {
+    id: focusId.value,
+    status: "pending",
+    source: "agent",
+    focusText,
+    evidenceCode: input.evidenceCode,
+    basedOnSetId: basedOn.id,
+    targetSetId: target.id,
+    stagedAt: stagedAt.value,
+  };
+
+  return success(
+    transitionSession(session, {
+      coachingFocuses: [
+        ...session.coachingFocuses.map(cloneCoachingFocus),
+        focus,
+      ],
+    }),
+  );
+}
+
+function decideNextSetFocus(
+  session: PatientSession,
+  input: DecideNextSetFocusInput,
+  decision: "accepted" | "dismissed",
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  const conflict = revisionConflict(
+    session,
+    input.expectedTransitionRevision,
+  );
+  if (conflict) return failure(conflict);
+  if (session.status === "completed" || session.status === "stopped") {
+    return failure(
+      error(
+        "session_closed",
+        "This session can no longer decide a coaching focus.",
+        "status",
+      ),
+    );
+  }
+  if (typeof input.focusId !== "string" || !input.focusId.trim()) {
+    return failure(
+      error(
+        "focus_id_required",
+        "A pending coaching focus ID is required.",
+        "focusId",
+      ),
+    );
+  }
+  const pending = session.coachingFocuses.find(
+    (focus) => focus.id === input.focusId && focus.status === "pending",
+  );
+  if (!pending) {
+    return failure(
+      error(
+        "pending_focus_not_found",
+        "The requested pending coaching focus is unavailable or already decided.",
+        "focusId",
+      ),
+    );
+  }
+
+  if (decision === "accepted") {
+    if (session.status !== "active" || session.safetyGate.active) {
+      return failure(
+        error(
+          session.safetyGate.active ? "pain_safety_gate" : "session_not_active",
+          session.safetyGate.active
+            ? "The pain safety gate is active. A next-set focus cannot be accepted."
+            : "The session must be active before accepting a next-set focus.",
+          session.safetyGate.active ? "safetyGate" : "status",
+        ),
+      );
+    }
+    const target = session.sets.find((set) => set.id === pending.targetSetId);
+    if (!target || target.status !== "planned") {
+      return failure(
+        error(
+          "focus_target_unavailable",
+          "The coaching focus target set is no longer planned.",
+          "focusId",
+        ),
+      );
+    }
+  }
+
+  const decidedAt = timestamp(factories(factoryOverrides).now);
+  if (!decidedAt.ok) return decidedAt;
+  return success(
+    transitionSession(session, {
+      coachingFocuses: session.coachingFocuses.map((focus) =>
+        focus.id === pending.id
+          ? {
+              ...cloneCoachingFocus(focus),
+              status: decision,
+              decidedAt: decidedAt.value,
+            }
+          : cloneCoachingFocus(focus),
+      ),
+    }),
+  );
+}
+
+/** Human UI only: accepts a pending suggestion without changing dosage. */
+export function acceptNextSetFocus(
+  session: PatientSession,
+  input: DecideNextSetFocusInput,
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  return decideNextSetFocus(session, input, "accepted", factoryOverrides);
+}
+
+/** Human UI only: dismisses a pending suggestion without changing dosage. */
+export function dismissNextSetFocus(
+  session: PatientSession,
+  input: DecideNextSetFocusInput,
+  factoryOverrides?: Partial<SessionFactories>,
+): DomainResult<PatientSession> {
+  return decideNextSetFocus(session, input, "dismissed", factoryOverrides);
+}
+
 export function pauseSession(
   session: PatientSession,
   factoryOverrides?: Partial<SessionFactories>,
@@ -1065,7 +1432,9 @@ export function pauseSession(
   }
   const now = timestamp(factories(factoryOverrides).now);
   if (!now.ok) return now;
-  return success(cloneSession(session, { status: "paused", pausedAt: now.value }));
+  return success(
+    transitionSession(session, { status: "paused", pausedAt: now.value }),
+  );
 }
 
 export function resumeSession(
@@ -1083,7 +1452,9 @@ export function resumeSession(
       ),
     );
   }
-  return success(cloneSession(session, { status: "active", pausedAt: undefined }));
+  return success(
+    transitionSession(session, { status: "active", pausedAt: undefined }),
+  );
 }
 
 export function skipExercise(
@@ -1117,7 +1488,7 @@ export function skipExercise(
   const now = timestamp(factories(factoryOverrides).now);
   if (!now.ok) return now;
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       sets: session.sets.map((set) =>
         set.exerciseId === input.exerciseId && set.status === "planned"
           ? {
@@ -1156,7 +1527,7 @@ export function logPain(
   if (!painResult.ok) return painResult;
   const gateActive = painResult.value.safetyGate.active;
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       status: gateActive ? "paused" : session.status,
       pausedAt: gateActive ? now.value : session.pausedAt,
       sets: gateActive
@@ -1194,7 +1565,7 @@ export function stopSession(
   const now = timestamp(factories(factoryOverrides).now);
   if (!now.ok) return now;
   return success(
-    cloneSession(session, {
+    transitionSession(session, {
       status: "stopped",
       stoppedAt: now.value,
       stopReason: input.reason.trim(),
@@ -1267,13 +1638,15 @@ export function finishSession(
   }
   const now = timestamp(factories(factoryOverrides).now);
   if (!now.ok) return now;
-  const completed = cloneSession(session, {
+  const completedForSummary = cloneSession(session, {
     status: "completed",
     completedAt: now.value,
   });
   return success(
-    cloneSession(completed, {
-      summary: makeSummary(completed, now.value),
+    transitionSession(session, {
+      status: "completed",
+      completedAt: now.value,
+      summary: makeSummary(completedForSummary, now.value),
     }),
   );
 }

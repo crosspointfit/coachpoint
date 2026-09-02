@@ -34,8 +34,11 @@ export interface UseHalfSquatCameraSetResult {
   readonly videoRef: RefObject<HTMLVideoElement | null>;
   readonly canvasRef: RefObject<HTMLCanvasElement | null>;
   readonly prepare: () => Promise<boolean>;
-  readonly start: () => Promise<boolean>;
+  readonly start: (
+    selectedCameraIdOverride?: string | null,
+  ) => Promise<boolean>;
   readonly stop: () => void;
+  readonly getState: () => HalfSquatCameraSetState;
 }
 
 /**
@@ -53,6 +56,7 @@ export function useHalfSquatCameraSet(
   const [state, setState] = useState<HalfSquatCameraSetState>(() =>
     createInitialHalfSquatCameraSetState(),
   );
+  const stateRef = useRef(state);
 
   useEffect(() => {
     optionsRef.current = options;
@@ -70,7 +74,10 @@ export function useHalfSquatCameraSet(
         readSelectedCameraId: () => optionsRef.current.selectedCameraId,
         getVideoElement: () => videoRef.current,
         getCanvasElement: () => canvasRef.current,
-        onStateChange: setState,
+        onStateChange: (nextState) => {
+          stateRef.current = nextState;
+          setState(nextState);
+        },
         onTerminal: (result) => optionsRef.current.onTerminal(result),
         releaseAudio: () => optionsRef.current.releaseAudio?.(),
       },
@@ -87,11 +94,20 @@ export function useHalfSquatCameraSet(
     () => controllerRef.current?.prepare() ?? Promise.resolve(false),
     [],
   );
-  const start = useCallback(
-    () => controllerRef.current?.start() ?? Promise.resolve(false),
+  const start = useCallback((selectedCameraIdOverride?: string | null) => {
+    if (selectedCameraIdOverride !== undefined) {
+      optionsRef.current = {
+        ...optionsRef.current,
+        selectedCameraId: selectedCameraIdOverride,
+      };
+    }
+    return controllerRef.current?.start() ?? Promise.resolve(false);
+  }, []);
+  const stop = useCallback(() => controllerRef.current?.stop(), []);
+  const getState = useCallback(
+    () => controllerRef.current?.getState() ?? stateRef.current,
     [],
   );
-  const stop = useCallback(() => controllerRef.current?.stop(), []);
 
-  return { state, videoRef, canvasRef, prepare, start, stop };
+  return { state, videoRef, canvasRef, prepare, start, stop, getState };
 }

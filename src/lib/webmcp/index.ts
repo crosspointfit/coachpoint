@@ -35,6 +35,17 @@ export {
   type PatientCompletedMotionSetView,
 } from "./patient-motion-tools.ts";
 export {
+  createPatientFocusToolDescriptors,
+  stageNextSetFocusSchema,
+  type PatientFocusToolBindings,
+  type StageNextSetFocusToolInput,
+} from "./patient-focus-tools.ts";
+export {
+  createAdherenceToolDescriptors,
+  getAdherenceSummarySchema,
+  type AdherenceSummaryView,
+} from "./adherence-tools.ts";
+export {
   useWebMcpTools,
   type WebMcpRegistrationState,
   type WebMcpRegistrationStatus,

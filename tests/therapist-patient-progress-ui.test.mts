@@ -13,6 +13,8 @@ test("therapist client hub reads the validated patient session for the active co
   assert.match(source, /readPatientSession\(activePatientCode\)/);
   assert.match(source, /getSessionProgress\(patientSession\)/);
   assert.match(source, /projectLatestPatientMotionResult\(patientSession\)/);
+  assert.match(source, /createAdherenceToolDescriptors/);
+  assert.match(source, /patientSessionRef\.current = current/);
   assert.match(source, /window\.addEventListener\("storage", refresh\)/);
   assert.match(source, /window\.addEventListener\("focus", refresh\)/);
 });

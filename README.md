@@ -20,21 +20,23 @@ The durable implementation plan is in
 6. Client detail shows the active version, earlier immutable versions and
    attributed activity. Old patient links keep their original dosage.
 
-Eight WebMCP tools are split across five route surfaces:
+Ten WebMCP tools are split across five route surfaces:
 
 | Route | Tool | Effect |
 | --- | --- | --- |
 | `/therapist` | `list_clients` | Reads the currently visible filtered directory; at most three synthetic clients. |
 | `/therapist/clients/[clientId]` | `get_client_summary` | Reads visible context, current/active plans, up to 20 history entries and five recent activities. |
+| `/therapist/clients/[clientId]` | `get_adherence_summary` | Reads identity-free completion, RPE/pain, deviations and latest safe motion observations from the active program's validated patient session. |
 | Program editor | `get_program_editor_state` | Reads the route-bound draft revision and confirmation state. |
 | Program editor | `search_exercises` | Read-only structured catalog search. |
 | Program editor | `get_exercise_details` | Read-only timing, precautions and contraindications. |
 | Program editor | `draft_program` | Revision-guarded visible draft only; never confirms or activates it. |
 | `/motion-lab` | `get_latest_motion_lab_set_result` | Reads the latest completed or stopped isolated-demo set aggregate only after the user asks for a review; it cannot monitor the active set and exposes no camera details or raw motion series. |
 | `/patient/[code]` | `review_completed_set` | Reads the latest persisted, checked-in camera set with its therapist-confirmed target, aggregate observations and explicit RPE/pain; it cannot monitor or control the set. |
+| `/patient/[code]` | `stage_next_set_focus` | Revision-guarded write that stages one evidence-linked suggestion for visible human Accept/Dismiss; it cannot change prescription dosage or start a set. |
 
 The editor route is
-`/therapist/clients/[clientId]/programs/[programId]`. The five route-owned read
+`/therapist/clients/[clientId]/programs/[programId]`. The six route-owned read
 tools—`list_clients`, `get_client_summary`, `get_program_editor_state`, and
 the two post-set motion review tools—accept `{}` only: the page, not a supplied
 identifier, owns their context. They read
@@ -66,8 +68,16 @@ The local patient link supports both camera and camera-independent completion:
 - A summary is created only after every set is completed, skipped, or stopped.
 - `review_completed_set` becomes readable only after camera result persistence
   and check-in; active or staged sets expose no result.
+- `stage_next_set_focus` can add one evidence-linked pending suggestion for the
+  next same-exercise set using an exact session revision. The patient must
+  accept or dismiss it visibly before that target set can start.
+- Accepted focus text is displayed separately from prescription dosage and may
+  appear over the next camera preview; it never changes the exercise, reps,
+  rest, order or range.
 - The therapist client hub reads the same validated envelope to show adherence,
   RPE/pain and the latest checked-in camera observations.
+- `get_adherence_summary` exposes the same identity-free therapist read model
+  without returning patient labels, codes, record IDs or raw session data.
 
 No video, camera identifier, landmark, raw angle or per-repetition time series
 is stored in the patient session.
@@ -112,7 +122,7 @@ is stored in the patient session.
   and an explicit voice preview
 - Raw video and raw landmark frames are never saved in the summary
 
-The current automated suite baseline is 193 passing tests, and the deterministic
+The current automated suite baseline is 217 passing tests, and the deterministic
 fixture plus model loading pass headless Chromium. These software checks do not
 mean that a physical camera has passed. A user-assisted device, cleanup,
 tracking-loss, and 5–8 repetition accuracy run remains a release gate. Per the
@@ -140,9 +150,9 @@ Motion Lab intentionally separates three timing layers:
 
 The standalone checkpoint exposes only
 `get_latest_motion_lab_set_result`. The canonical patient route now exposes
-`review_completed_set` after persistence and explicit check-in. Future work may
-add `prepare_motion_session` and `stage_next_set_focus`, with an optional
-terminal-only `end_motion_session`.
+`review_completed_set` after persistence and explicit check-in plus the
+revision-guarded `stage_next_set_focus`. Future work may add
+`prepare_motion_session`, with an optional terminal-only `end_motion_session`.
 There will be no WebMCP motion-monitoring tool during an active set.
 
 The first read-only contract checkpoint is implemented on `/motion-lab` as
@@ -199,7 +209,7 @@ The current therapist checkpoint has passed:
 - Headless runtime, network, image, layout, and basic accessibility checks
 - Manual add, edit/reorder, confirm, patient-link, and local persistence probes
 - Native Codex in-app Browser discovery and invocation of the route-owned tools;
-  eight tools are now implemented across five surfaces
+  ten tools are now implemented across five surfaces
 - Route cleanup showing no WebMCP tools on the landing page
 - Same-browser therapist confirmation through patient-session completion
 - Patient pain-gate and in-app Browser refresh-recovery probes
@@ -207,7 +217,7 @@ The current therapist checkpoint has passed:
   self-hosted MediaPipe GPU runtime/model load
 - Permission-first camera-domain, exact-device constraint, device fallback,
   tracking-loss reset, side-hysteresis, and terminal-only result-tool tests;
-  `npm test` currently reports 193 passing tests
+  `npm test` currently reports 217 passing tests
 - Native post-set Motion Lab WebMCP verification: pre-set reads return
   `result_unavailable`, while a fresh 6/6 OBS demo result is available only
   after completion with no raw frames, landmarks, or time series
@@ -217,6 +227,9 @@ The current therapist checkpoint has passed:
 - Complete therapist-confirmed OBS golden path: 8/8 patient camera set,
   persisted RPE/pain, agent review and therapist 1/2 adherence readback; see
   [Patient OBS golden-path evidence](./docs/patient-obs-golden-path.md)
+- Conflict-safe session revisions, append-only coaching focus history, human
+  Accept/Dismiss gating, legacy storage normalization, and identity-free
+  therapist `get_adherence_summary` tests
 - Phase 4.5: three consecutive isolated, native-WebMCP workflows on one
   production build, with simulated therapist UI edits/confirmation, immutable
   patient links, client isolation, reload and back/forward recovery

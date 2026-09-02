@@ -19,6 +19,7 @@ export type PatientMotionContinuationBlock =
 export interface PatientCompletedMotionSetView {
   schemaVersion: 1;
   resultStatus: "ready_for_review";
+  sessionRevision: number;
   target: {
     exerciseName: string;
     targetRepetitions: number;
@@ -240,6 +241,8 @@ export function projectLatestPatientMotionResult(
 ): PatientCompletedMotionSetView | null {
   try {
     if (
+      !Number.isSafeInteger(session.transitionRevision) ||
+      session.transitionRevision < 0 ||
       typeof session.safetyGate.active !== "boolean" ||
       !finiteInRange(session.safetyGate.threshold, 0, 10) ||
       session.sets.some((set) => set.status === "active")
@@ -272,6 +275,7 @@ export function projectLatestPatientMotionResult(
     return {
       schemaVersion: 1,
       resultStatus: "ready_for_review",
+      sessionRevision: session.transitionRevision,
       target: {
         exerciseName: aggregate.target.exerciseName,
         targetRepetitions: aggregate.target.targetRepetitions,

@@ -33,6 +33,7 @@ import { createProgramForClient } from "@/lib/caseloadStorage";
 import { readPatientSession } from "@/lib/patientStorage";
 import { useCaseloadSnapshot } from "@/lib/use-caseload-snapshot";
 import {
+  createAdherenceToolDescriptors,
   createClientToolDescriptors,
   useWebMcpTools,
   type WebMcpToolDescriptor,
@@ -140,6 +141,7 @@ export default function ClientProgramHub({
   );
   const hydrated = view !== null;
   const visibleView = useRef<ClientProgramView | null>(null);
+  const patientSessionRef = useRef<PatientSession | null>(null);
   useEffect(() => {
     visibleView.current = view;
     return () => { visibleView.current = null; };
@@ -148,7 +150,10 @@ export default function ClientProgramHub({
   useEffect(() => {
     if (!hydrated) return;
     let active = true;
-    const tools = createClientToolDescriptors(initialClient.id, () => visibleView.current);
+    const tools = [
+      ...createClientToolDescriptors(initialClient.id, () => visibleView.current),
+      ...createAdherenceToolDescriptors(() => patientSessionRef.current),
+    ];
     void Promise.resolve().then(() => { if (active) setDescriptors(tools); });
     return () => { active = false; };
   }, [hydrated, initialClient.id]);
@@ -172,15 +177,18 @@ export default function ClientProgramHub({
     let active = true;
     const refresh = () => {
       if (!active) return;
-      setPatientSession(
-        activePatientCode ? readPatientSession(activePatientCode) : null,
-      );
+      const current = activePatientCode
+        ? readPatientSession(activePatientCode)
+        : null;
+      patientSessionRef.current = current;
+      setPatientSession(current);
     };
     const hydrationTimer = window.setTimeout(refresh, 0);
     window.addEventListener("focus", refresh);
     window.addEventListener("storage", refresh);
     return () => {
       active = false;
+      patientSessionRef.current = null;
       window.clearTimeout(hydrationTimer);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("storage", refresh);

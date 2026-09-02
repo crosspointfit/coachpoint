@@ -9,6 +9,31 @@ const MAX_ID_LENGTH = 512;
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_SETS = 2_000;
 const MAX_PAIN_EVENTS = 5_000;
+const MAX_COACHING_FOCUSES = 2_000;
+const MAX_FOCUS_TEXT_LENGTH = 240;
+
+const SESSION_REQUIRED_KEYS = [
+  "id",
+  "program",
+  "transitionRevision",
+  "status",
+  "sets",
+  "painEvents",
+  "coachingFocuses",
+  "safetyGate",
+  "createdAt",
+] as const;
+const SESSION_OPTIONAL_KEYS = [
+  "startedAt",
+  "pausedAt",
+  "stoppedAt",
+  "completedAt",
+  "stopReason",
+  "summary",
+] as const;
+const LEGACY_SESSION_REQUIRED_KEYS = SESSION_REQUIRED_KEYS.filter(
+  (key) => key !== "transitionRevision" && key !== "coachingFocuses",
+);
 
 interface PatientSessionEnvelopeV2 {
   readonly version: 2;
@@ -586,6 +611,108 @@ function validateSessionSummary(value: unknown): boolean {
   );
 }
 
+function validateCoachingFocus(
+  value: unknown,
+  setsById: ReadonlyMap<string, PlainRecord>,
+): boolean {
+  if (!isPlainRecord(value)) return false;
+  if (
+    !hasOnlyDataProperties(
+      value,
+      [
+        "id",
+        "status",
+        "source",
+        "focusText",
+        "evidenceCode",
+        "basedOnSetId",
+        "targetSetId",
+        "stagedAt",
+      ],
+      ["decidedAt"],
+    ) ||
+    !isString(value.id, { nonEmpty: true, maximumLength: MAX_ID_LENGTH }) ||
+    !isOneOf(
+      value.status,
+      ["pending", "accepted", "dismissed"] as const,
+    ) ||
+    value.source !== "agent" ||
+    !isString(value.focusText, {
+      nonEmpty: true,
+      maximumLength: MAX_FOCUS_TEXT_LENGTH,
+    }) ||
+    value.focusText.trim() !== value.focusText ||
+    !isOneOf(
+      value.evidenceCode,
+      ["target_completed", "high_effort", "range_consistent"] as const,
+    ) ||
+    !isString(value.basedOnSetId, {
+      nonEmpty: true,
+      maximumLength: MAX_ID_LENGTH,
+    }) ||
+    !isString(value.targetSetId, {
+      nonEmpty: true,
+      maximumLength: MAX_ID_LENGTH,
+    }) ||
+    value.basedOnSetId === value.targetSetId ||
+    !isTimestamp(value.stagedAt) ||
+    !isOptionalTimestamp(value.decidedAt)
+  ) {
+    return false;
+  }
+
+  if (
+    (value.status === "pending" && value.decidedAt !== undefined) ||
+    (value.status !== "pending" && !isTimestamp(value.decidedAt))
+  ) {
+    return false;
+  }
+  const decidedAt = value.decidedAt;
+  if (
+    decidedAt !== undefined &&
+    (!isTimestamp(decidedAt) ||
+      new Date(decidedAt).getTime() < new Date(value.stagedAt).getTime())
+  ) {
+    return false;
+  }
+
+  const basedOn = setsById.get(value.basedOnSetId);
+  const target = setsById.get(value.targetSetId);
+  if (!basedOn || !target) return false;
+  if (
+    basedOn.status !== "completed" ||
+    basedOn.mode !== "camera" ||
+    !isPlainRecord(basedOn.actual) ||
+    !isPlainRecord(basedOn.actual.motion) ||
+    target.exerciseId !== basedOn.exerciseId ||
+    !isInteger(target.sequence, 0) ||
+    !isInteger(basedOn.sequence, 0) ||
+    target.sequence <= basedOn.sequence
+  ) {
+    return false;
+  }
+
+  const basedOnCompletedAt = basedOn.completedAt;
+  if (
+    !isTimestamp(basedOnCompletedAt) ||
+    new Date(value.stagedAt).getTime() < new Date(basedOnCompletedAt).getTime()
+  ) {
+    return false;
+  }
+
+  if (value.status === "pending" && target.status !== "planned") {
+    return false;
+  }
+  const targetTransitionAt =
+    target.startedAt ?? target.skippedAt ?? target.stoppedAt ?? target.completedAt;
+  return (
+    target.status === "planned" ||
+    (isTimestamp(targetTransitionAt) &&
+      new Date(targetTransitionAt).getTime() >=
+        new Date(value.stagedAt).getTime())
+  );
+}
+
 /** Runtime boundary for persisted PatientSession values. */
 export function isPatientSession(
   value: unknown,
@@ -596,18 +723,12 @@ export function isPatientSession(
     if (
       !hasOnlyDataProperties(
         value,
-        ["id", "program", "status", "sets", "painEvents", "safetyGate", "createdAt"],
-        [
-          "startedAt",
-          "pausedAt",
-          "stoppedAt",
-          "completedAt",
-          "stopReason",
-          "summary",
-        ],
+        SESSION_REQUIRED_KEYS,
+        SESSION_OPTIONAL_KEYS,
       ) ||
       !isString(value.id, { nonEmpty: true, maximumLength: MAX_ID_LENGTH }) ||
       !validateProgramSnapshot(value.program) ||
+      !isInteger(value.transitionRevision, 0) ||
       !isOneOf(
         value.status,
         ["not_started", "active", "paused", "stopped", "completed"] as const,
@@ -619,6 +740,8 @@ export function isPatientSession(
       !Array.isArray(value.painEvents) ||
       value.painEvents.length > MAX_PAIN_EVENTS ||
       !value.painEvents.every(validatePainEvent) ||
+      !Array.isArray(value.coachingFocuses) ||
+      value.coachingFocuses.length > MAX_COACHING_FOCUSES ||
       !validateSafetyGate(value.safetyGate) ||
       !isTimestamp(value.createdAt) ||
       !isOptionalTimestamp(value.startedAt) ||
@@ -641,12 +764,14 @@ export function isPatientSession(
     }
 
     const setIds = new Set<string>();
+    const setsById = new Map<string, PlainRecord>();
     const setSequences = new Set<number>();
     let activeSetCount = 0;
     for (const setValue of value.sets) {
       const set = setValue as PlainRecord;
       if (setIds.has(set.id as string)) return false;
       setIds.add(set.id as string);
+      setsById.set(set.id as string, set);
       if (setSequences.has(set.sequence as number)) return false;
       setSequences.add(set.sequence as number);
       if (set.status === "active") activeSetCount += 1;
@@ -666,6 +791,14 @@ export function isPatientSession(
       )
     ) {
       return false;
+    }
+
+    const focusIds = new Set<string>();
+    for (const focus of value.coachingFocuses) {
+      if (!validateCoachingFocus(focus, setsById)) return false;
+      const focusId = (focus as PlainRecord).id as string;
+      if (focusIds.has(focusId)) return false;
+      focusIds.add(focusId);
     }
 
     const painIds = new Set<string>();
@@ -725,17 +858,56 @@ export function isPatientSession(
   }
 }
 
-function isEnvelopeV2(
+interface NormalizedSessionCandidate {
+  readonly session: PatientSession;
+  readonly changed: boolean;
+}
+
+function normalizeSessionCandidate(
   value: unknown,
   expectedProgramCode: string,
-): value is PatientSessionEnvelopeV2 {
-  if (!isPlainRecord(value)) return false;
-  return (
-    hasOnlyDataProperties(value, ["version", "programCode", "session"]) &&
-    value.version === V2_ENVELOPE_VERSION &&
-    value.programCode === expectedProgramCode &&
-    isPatientSession(value.session, expectedProgramCode)
-  );
+): NormalizedSessionCandidate | null {
+  if (!isPlainRecord(value)) return null;
+  if (
+    !hasOnlyDataProperties(
+      value,
+      LEGACY_SESSION_REQUIRED_KEYS,
+      [
+        ...SESSION_OPTIONAL_KEYS,
+        "transitionRevision",
+        "coachingFocuses",
+      ],
+    )
+  ) {
+    return null;
+  }
+  const hasTransitionRevision = Object.hasOwn(value, "transitionRevision");
+  const hasCoachingFocuses = Object.hasOwn(value, "coachingFocuses");
+  const normalized = {
+    ...value,
+    transitionRevision: hasTransitionRevision ? value.transitionRevision : 0,
+    coachingFocuses: hasCoachingFocuses ? value.coachingFocuses : [],
+  };
+  if (!isPatientSession(normalized, expectedProgramCode)) return null;
+  return {
+    session: normalized,
+    changed: !hasTransitionRevision || !hasCoachingFocuses,
+  };
+}
+
+function readEnvelopeV2(
+  value: unknown,
+  expectedProgramCode: string,
+): NormalizedSessionCandidate | null {
+  if (!isPlainRecord(value)) return null;
+  if (
+    !hasOnlyDataProperties(value, ["version", "programCode", "session"]) ||
+    value.version !== V2_ENVELOPE_VERSION ||
+    value.programCode !== expectedProgramCode
+  ) {
+    return null;
+  }
+  return normalizeSessionCandidate(value.session, expectedProgramCode);
 }
 
 function getStorage(): Storage | null {
@@ -800,16 +972,26 @@ export function readPatientSession<
     const currentRaw = storage.getItem(v2SessionKey(programCode));
     if (currentRaw !== null) {
       const current = parseJson(currentRaw);
-      if (!isEnvelopeV2(current, programCode)) return null;
-      return cloneSession(current.session) as T | null;
+      const normalized = readEnvelopeV2(current, programCode);
+      if (!normalized) return null;
+      if (normalized.changed) {
+        // setItem is atomic: a failed rewrite leaves the valid legacy V2 intact.
+        void writeEnvelope(storage, programCode, normalized.session);
+      }
+      return cloneSession(normalized.session) as T | null;
     }
 
     const legacyRaw = storage.getItem(v1SessionKey(programCode));
     if (legacyRaw === null) return null;
     const legacy = parseJson(legacyRaw);
-    if (!isPatientSession(legacy, programCode)) return null;
+    const normalizedLegacy = normalizeSessionCandidate(legacy, programCode);
+    if (!normalizedLegacy) return null;
 
-    const migrated = writeEnvelope(storage, programCode, legacy);
+    const migrated = writeEnvelope(
+      storage,
+      programCode,
+      normalizedLegacy.session,
+    );
     if (migrated) {
       try {
         storage.removeItem(v1SessionKey(programCode));
@@ -817,10 +999,103 @@ export function readPatientSession<
         // V2 is authoritative once written; stale V1 data is ignored next read.
       }
     }
-    return cloneSession(legacy) as T | null;
+    return cloneSession(normalizedLegacy.session) as T | null;
   } catch {
     return null;
   }
+}
+
+function stableJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (!isPlainRecord(value)) return value;
+  const result: PlainRecord = {};
+  for (const key of Object.keys(value).sort()) {
+    const item = value[key];
+    if (item !== undefined) result[key] = stableJsonValue(item);
+  }
+  return result;
+}
+
+function sessionsEqual(left: PatientSession, right: PatientSession): boolean {
+  try {
+    return JSON.stringify(stableJsonValue(left)) ===
+      JSON.stringify(stableJsonValue(right));
+  } catch {
+    return false;
+  }
+}
+
+function focusRecordEqual(
+  left: PlainRecord,
+  right: PlainRecord,
+): boolean {
+  return (
+    left.id === right.id &&
+    left.source === right.source &&
+    left.focusText === right.focusText &&
+    left.evidenceCode === right.evidenceCode &&
+    left.basedOnSetId === right.basedOnSetId &&
+    left.targetSetId === right.targetSetId &&
+    left.stagedAt === right.stagedAt
+  );
+}
+
+function preservesAppendOnlyFocuses(
+  previous: PatientSession,
+  next: PatientSession,
+): boolean {
+  if (next.coachingFocuses.length < previous.coachingFocuses.length) {
+    return false;
+  }
+  for (let index = 0; index < previous.coachingFocuses.length; index += 1) {
+    const before = previous.coachingFocuses[index] as unknown as PlainRecord;
+    const after = next.coachingFocuses[index] as unknown as PlainRecord;
+    if (!before || !after || !focusRecordEqual(before, after)) return false;
+
+    if (before.status === "pending") {
+      if (after.status === "pending") {
+        if (after.decidedAt !== undefined) return false;
+      } else if (
+        (after.status !== "accepted" && after.status !== "dismissed") ||
+        !isTimestamp(after.decidedAt)
+      ) {
+        return false;
+      }
+    } else if (
+      after.status !== before.status ||
+      after.decidedAt !== before.decidedAt
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function validMonotonicTransition(
+  previous: PatientSession,
+  next: PatientSession,
+): boolean {
+  if (next.transitionRevision === previous.transitionRevision) {
+    return sessionsEqual(previous, next);
+  }
+  return (
+    next.transitionRevision === previous.transitionRevision + 1 &&
+    preservesAppendOnlyFocuses(previous, next)
+  );
+}
+
+function readExistingSessionForWrite(
+  storage: Storage,
+  programCode: string,
+): PatientSession | null | false {
+  const currentRaw = storage.getItem(v2SessionKey(programCode));
+  if (currentRaw !== null) {
+    const current = readEnvelopeV2(parseJson(currentRaw), programCode);
+    return current?.session ?? false;
+  }
+  const legacyRaw = storage.getItem(v1SessionKey(programCode));
+  if (legacyRaw === null) return null;
+  return normalizeSessionCandidate(parseJson(legacyRaw), programCode)?.session ?? false;
 }
 
 /** Writes one validated V2 envelope and reports whether it was committed. */
@@ -831,7 +1106,16 @@ export function writePatientSession<T extends PatientSession>(
   if (!validProgramCode(programCode)) return false;
   if (!isPatientSession(session, programCode)) return false;
   const storage = getStorage();
-  if (!storage || !writeEnvelope(storage, programCode, session)) return false;
+  if (!storage) return false;
+  let existing: PatientSession | null | false;
+  try {
+    existing = readExistingSessionForWrite(storage, programCode);
+  } catch {
+    return false;
+  }
+  if (existing === false) return false;
+  if (existing && !validMonotonicTransition(existing, session)) return false;
+  if (!writeEnvelope(storage, programCode, session)) return false;
   try {
     storage.removeItem(v1SessionKey(programCode));
   } catch {
