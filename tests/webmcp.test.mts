@@ -11,6 +11,7 @@ import {
   draftProgramSchema,
   getExerciseDetailsSchema,
   getProgramEditorStateSchema,
+  prepareDraftContextSchema,
   searchExercisesSchema,
 } from "../src/lib/webmcp/therapist-tools.ts";
 import type {
@@ -57,6 +58,7 @@ const handlers = {
   searchExercises: async (input: unknown) => ({ matches: [input] }),
   getExerciseDetails: async () => ({ id: "shoulder-wall-slide" }),
   getProgramEditorState: async () => ({ revision: 1, itemCount: 0 }),
+  prepareDraftContext: async (input: unknown) => ({ prepared: input }),
   draftProgram: async () => ({ id: "draft-1", source: "agent" }),
 };
 
@@ -83,7 +85,7 @@ function assertDescribedObjectSchema(schema: unknown): void {
   }
 }
 
-test("registers the four editor tools with one ownership signal", async () => {
+test("registers the five editor tools with one ownership signal", async () => {
   const fake = new FakeModelContext();
   const tools = createTherapistToolDescriptors(handlers);
   const registration = startWebMcpRegistration(fake, tools);
@@ -93,14 +95,16 @@ test("registers the four editor tools with one ownership signal", async () => {
     "get_exercise_details",
     "get_program_editor_state",
     "draft_program",
+    "prepare_draft_context",
   ]);
-  assert.equal(fake.calls.length, 4);
+  assert.equal(fake.calls.length, 5);
   assert.ok(fake.calls.every(({ options }) => options?.signal === registration.signal));
   assert.deepEqual([...fake.activeNames], [
     "search_exercises",
     "get_exercise_details",
     "get_program_editor_state",
     "draft_program",
+    "prepare_draft_context",
   ]);
 
   assert.equal(tools[0]?.annotations.readOnlyHint, true);
@@ -108,23 +112,73 @@ test("registers the four editor tools with one ownership signal", async () => {
   assert.equal(tools[2]?.annotations.readOnlyHint, true);
   assert.equal(tools[3]?.annotations.readOnlyHint, false);
   assert.equal(tools[3]?.annotations.untrustedContentHint, true);
+  assert.equal(tools[4]?.annotations.readOnlyHint, true);
+  assert.equal(tools[4]?.annotations.untrustedContentHint, true);
 });
 
 test("therapist schemas describe every field and reject extra properties", () => {
   assertDescribedObjectSchema(searchExercisesSchema);
   assertDescribedObjectSchema(getExerciseDetailsSchema);
   assertDescribedObjectSchema(getProgramEditorStateSchema);
+  assertDescribedObjectSchema(prepareDraftContextSchema);
   assertDescribedObjectSchema(draftProgramSchema);
 
   assert.deepEqual(searchExercisesSchema.required, ["query"]);
   assert.ok(searchExercisesSchema.properties.bodyRegion.enum.includes("hand"));
   assert.deepEqual(getExerciseDetailsSchema.required, ["exerciseId"]);
   assert.deepEqual(getProgramEditorStateSchema.required, []);
-  assert.deepEqual(draftProgramSchema.required, [
-    "expectedDraftRevision",
-    "caseContext",
-    "items",
+  assert.deepEqual(prepareDraftContextSchema.required, ["searches"]);
+  assert.equal(prepareDraftContextSchema.properties.searches.maxItems, 3);
+  assert.deepEqual(draftProgramSchema.required, ["items"]);
+  assert.equal(draftProgramSchema.properties.items.maxItems, 4);
+  assert.equal("replaceExistingDraft" in draftProgramSchema.properties, false);
+  assert.deepEqual(draftProgramSchema.properties.items.items.required, [
+    "query",
+    "sets",
+    "frequencyPerDay",
+    "restSeconds",
   ]);
+});
+
+test("draft tool is a one-call route-bound write without redundant approval", async () => {
+  const tools = createTherapistToolDescriptors(handlers);
+  const input = {
+    items: [
+      {
+        query: "supported heel raise",
+        bodyRegion: "ankle",
+        equipment: "chair",
+        sets: 2,
+        reps: 12,
+        frequencyPerDay: 1,
+        restSeconds: 45,
+      },
+    ],
+  };
+
+  assert.deepEqual(await tools[3]?.execute(input), {
+    ok: true,
+    value: { id: "draft-1", source: "agent" },
+  });
+  assert.equal(tools[3]?.annotations.readOnlyHint, false);
+  assert.match(tools[3]?.description ?? "", /without asking for redundant approval/i);
+  assert.match(tools[3]?.description ?? "", /never confirms, activates, or publishes/i);
+});
+
+test("preferred draft context tool forwards one bounded batch as a read", async () => {
+  const tools = createTherapistToolDescriptors(handlers);
+  const input = {
+    searches: [
+      { query: "heel raise", bodyRegion: "ankle", maxResults: 1 },
+      { query: "half squat", bodyRegion: "knee", maxResults: 1 },
+    ],
+  };
+
+  assert.deepEqual(await tools[4]?.execute(input), {
+    ok: true,
+    value: { prepared: input },
+  });
+  assert.equal(tools[4]?.annotations.readOnlyHint, true);
 });
 
 test("aborting registration removes route tools and a remount can register cleanly", async () => {
@@ -145,6 +199,7 @@ test("aborting registration removes route tools and a remount can register clean
     "get_exercise_details",
     "get_program_editor_state",
     "draft_program",
+    "prepare_draft_context",
   ]);
 
   second.abort();

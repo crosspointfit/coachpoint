@@ -24,9 +24,11 @@ Updated after the first implementation checkpoint on 2026-08-28:
   persistence.
 - **Phase 3 — complete and route-scoped to the editor.**
   `search_exercises`, `get_exercise_details`, `get_program_editor_state`, and
-  revision-guarded `draft_program` register directly on a valid program-editor
-  route with awaited registration and AbortController cleanup. Native Codex
-  in-app Browser calls successfully update and durably persist the shared UI.
+  route-bound `draft_program` register directly on a valid program-editor route
+  with awaited registration and AbortController cleanup. The preferred draft
+  call resolves catalog matches and writes the reversible review draft in one
+  invocation. Native Codex in-app Browser calls successfully update and durably
+  persist the shared UI.
 - **Phase 4 — original single-workspace functional gate passed.**
   Unit/contract tests, typecheck, lint, production build, headless browser
   checks, manual workflow probes, native in-app Browser
@@ -52,7 +54,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   public chrome, including the footer. Ninety-two tests and responsive/browser
   QA pass. Source tokens and visual evidence are recorded in
   `docs/design/pt-hep/` and `design-qa.md`. That count records the homepage
-  checkpoint; the current suite baseline is 217 tests after camera, audio,
+  checkpoint; the current suite baseline is 235 tests after camera, audio,
   reusable runner/aggregate extraction, patient persistence/WebMCP, and the
   therapist feedback projection.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
@@ -80,7 +82,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   the browser reflex path and uses an immediate, non-verbal earcon; speech is
   reserved for a few set milestones rather than queued once per repetition.
   Natural voices rank ahead of novelty voices, an explicit voice choice is
-  persisted, and a preview is available. The current 217-test suite passes; the
+  persisted, and a preview is available. The current 235-test suite passes; the
   test fixture counts three repetitions and the self-hosted GPU runtime/model
   loads in headless Chromium. This is a software baseline, not real-camera
   acceptance. By explicit user decision, OBS is the provisional integration
@@ -379,6 +381,17 @@ Implement the first complete competition-ready human-agent workflow.
 
 ### Initial therapist tools
 
+#### `prepare_draft_context`
+
+- Optional read-only planning path when the request is ambiguous or the
+  therapist asks for recommendations without asking to create a draft.
+- Reads the visible editor revision and complete synthetic case context while
+  batch-searching one to three requested movement intents.
+- Returns compact dosage, coaching mode, precautions and contraindications for
+  matched catalog movements in one bounded result.
+- Reuses the same catalog search operation as the human UI and never writes,
+  confirms or activates a prescription.
+
 #### `search_exercises`
 
 - Read-only.
@@ -392,9 +405,17 @@ Implement the first complete competition-ready human-agent workflow.
 
 #### `draft_program`
 
-- Writes a visible draft into the therapist UI.
+- Preferred one-call path when the therapist explicitly asks to create a
+  draft. The explicit request authorizes this reversible draft write, so the
+  agent does not ask for a second approval.
+- Reads the route-bound case and current revision, resolves each ordered
+  movement request through the same curated search used by the UI, checks
+  dosage and safety details, then writes the visible draft atomically.
 - Does not confirm or activate the program.
-- Validates item IDs, dosage, duration, and required case context.
+- Validates search matches, dosage, duration, and required case context.
+- Refuses to replace any non-empty draft, and refuses to alter a confirmed
+  program until the therapist starts a fresh prescription or reopens it
+  through the UI.
 
 ### Explicitly excluded at this phase
 
@@ -408,11 +429,15 @@ Draft modification and final confirmation remain human UI actions. Adherence is 
 
 1. The therapist provides the case description.
 2. The agent requests missing procedure or protocol context when necessary.
-3. The agent calls `search_exercises`.
-4. The agent inspects selected exercises with `get_exercise_details`.
-5. The agent calls `draft_program` with a program that fits the time constraint.
-6. The draft appears immediately in the shared UI.
-7. The therapist reorders items, changes dosage, and confirms the prescription.
+3. When the request explicitly asks for a draft, the agent calls
+   `draft_program` once with ordered movement intents and dosage. The tool
+   performs the route-bound catalog, safety, revision and duration work in the
+   same invocation. No redundant confirmation exchange is added.
+4. For recommendation-only or ambiguous requests, the agent may use
+   `prepare_draft_context`, `search_exercises`, or `get_exercise_details`
+   without writing.
+5. The draft appears immediately in the shared UI.
+6. The therapist reorders items, changes dosage, and confirms the prescription.
 
 ### Visible activity trail
 
@@ -566,16 +591,25 @@ not register a persistent therapist tool set from a shared layout.
   - Read-only.
   - Returns the route-bound client context, time constraint, current draft
     revision, and active confirmed-version summary.
+- `prepare_draft_context`
+  - Optional route-bound planning path for recommendation-only or ambiguous
+    requests.
+  - Batches the editor snapshot, synthetic case context, catalog searches and
+    compact safety/dosage details into one read-only result.
+  - Accepts no client or program identifier and never writes or confirms.
 - `search_exercises`
   - Retains the existing bounded, read-only catalog search contract.
 - `get_exercise_details`
   - Retains the existing read-only safety and dosage detail contract.
 - `draft_program`
-  - Writes a visible, validated draft only.
+  - Preferred one-call path for an explicitly requested visible draft.
   - Is bound to the client loaded by the route rather than accepting an
     arbitrary target client.
-  - Requires the expected draft revision so a stale agent call cannot silently
-    overwrite newer therapist edits.
+  - Resolves the ordered movement searches, dosage, safety details, current case
+    and current revision inside the same invocation.
+  - Refuses replacement of a non-empty draft and refuses to alter a confirmed
+    program until a therapist starts a fresh prescription or reopens it in the
+    UI.
   - Returns `awaiting_therapist_review` and never confirms, activates, or
     publishes a prescription.
 
@@ -596,8 +630,8 @@ must not cause repeated unregister/register churn.
 - Lifecycle tests cover dashboard → client A → editor A → client B →
   landing, including rapid navigation, cancellation, remount, refresh, and
   browser back/forward with no duplicate or ghost tools.
-- A cancelled or stale `draft_program` call cannot persist a partial or
-  cross-client update.
+- A cancelled `draft_program` call cannot persist a partial or cross-client
+  update, and a replay cannot silently replace a non-empty visible draft.
 - Persistence tests cover v2 round trips, client isolation, immutable version
   history, old patient links, draft refresh recovery, nested corruption,
   storage failure, and idempotent v1 migration.
@@ -714,7 +748,7 @@ Do not build a general expression or detection DSL in this phase. Use a typed de
 - Raw camera frames do not leave the browser.
 
 The deterministic and camera-domain portions of this gate are covered by the
-current 217-test software baseline. Physical-device behavior and counting
+current 235-test software baseline. Physical-device behavior and counting
 accuracy are still pending and must be recorded with the
 [user-assisted acceptance checklist](./docs/motion-lab-camera-acceptance.md);
 do not treat automated tests or headless model loading as a real-camera pass.

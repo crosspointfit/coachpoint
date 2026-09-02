@@ -36,6 +36,13 @@ export {
   type NumericRange,
 } from "./program.ts";
 export {
+  prepareProgramDraftContext,
+  type DraftContextSearchRequest,
+  type PrepareProgramDraftContextInput,
+  type PreparedDraftMovement,
+  type PreparedProgramDraftContext,
+} from "./draft-context.ts";
+export {
   MAX_COACHING_FOCUS_TEXT_LENGTH,
   PAIN_SAFETY_THRESHOLD,
   acceptNextSetFocus,

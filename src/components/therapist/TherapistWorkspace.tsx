@@ -10,6 +10,7 @@ import {
   estimateProgramDuration,
   getExerciseById,
   getSyntheticClient,
+  prepareProgramDraftContext,
   searchExercises,
   type TherapistWorkspaceSnapshot as CaseloadWorkspaceSnapshot,
   validateCaseContext,
@@ -33,6 +34,7 @@ import {
   useWebMcpTools,
   type DraftProgramInput,
   type GetExerciseDetailsInput,
+  type PrepareDraftContextInput,
   type SearchExercisesInput,
 } from "@/lib/webmcp";
 import {
@@ -376,20 +378,20 @@ export default function TherapistWorkspace({
             activeConfirmedCode: activeConfirmedVersion?.code,
           };
         },
-        draftProgram: async (input: DraftProgramInput, { signal }) => {
+        prepareDraftContext: async (
+          input: PrepareDraftContextInput,
+          { signal },
+        ) => {
           signal.throwIfAborted();
-          if (
-            !input?.caseContext ||
-            typeof input.caseContext !== "object" ||
-            !Array.isArray(input.items)
-          ) {
+          if (!input || !Array.isArray(input.searches)) {
             return {
               ok: false as const,
               errors: [
                 {
                   code: "invalid_input",
-                  message: "A caseContext object and ordered items array are required.",
-                  field: "caseContext,items",
+                  message:
+                    "One to three structured movement searches are required.",
+                  field: "searches",
                   recoverable: true,
                 },
               ],
@@ -399,23 +401,177 @@ export default function TherapistWorkspace({
             clientId && programId
               ? readProgramWorkspaceForClient(clientId, programId)
               : null;
-          const currentRevision = storedWorkspace?.draft?.revision ?? 0;
-          if (input.expectedDraftRevision !== currentRevision) {
+          if (!storedWorkspace) {
             return {
               ok: false as const,
               errors: [
                 {
-                  code: "draft_revision_conflict",
-                  message: `The editor is now at revision ${currentRevision}. Read the visible draft again before replacing it.`,
-                  field: "expectedDraftRevision",
+                  code: "program_not_found",
+                  message:
+                    "The route-bound program workspace is unavailable. Return to the client record and reopen a valid draft.",
+                  field: "programId",
                   recoverable: true,
                 },
               ],
             };
           }
+          const prepared = prepareProgramDraftContext({
+            caseContext: storedWorkspace.caseContext,
+            currentDraft: storedWorkspace.draft,
+            searches: input.searches,
+          });
+          if (!prepared.ok) return prepared;
+          signal.throwIfAborted();
+          return prepared;
+        },
+        draftProgram: async (input: DraftProgramInput, { signal }) => {
+          signal.throwIfAborted();
+          if (!input || !Array.isArray(input.items) || input.items.length === 0) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "invalid_input",
+                  message:
+                    "One to four ordered movement requests with proposed dosage are required.",
+                  field: "items",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
+          const storedWorkspace =
+            clientId && programId
+              ? readProgramWorkspaceForClient(clientId, programId)
+              : null;
+          if (!storedWorkspace) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "program_not_found",
+                  message:
+                    "The route-bound program workspace is unavailable. Return to the client record and reopen a valid draft.",
+                  field: "programId",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
+          if (storedWorkspace.confirmedProgram) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "confirmed_program_requires_human_reopen",
+                  message:
+                    "This prescription is already confirmed. The therapist must reopen it or start a new prescription in the UI before an agent can create another draft.",
+                  field: "program",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
+          if (
+            storedWorkspace.draft &&
+            storedWorkspace.draft.items.length > 0
+          ) {
+            return {
+              ok: false as const,
+              errors: [
+                {
+                  code: "visible_draft_must_be_empty",
+                  message:
+                    "A non-empty draft is already visible. The therapist must start a fresh prescription or clear the draft in the UI before the agent can create another one.",
+                  field: "program",
+                  recoverable: true,
+                },
+              ],
+            };
+          }
+
+          const currentRevision = storedWorkspace?.draft?.revision ?? 0;
+          const programItems: ProgramItem[] = [];
+          const selectedMovements: Array<{
+            exerciseId: string;
+            name: string;
+            precautions: readonly string[];
+            contraindications: readonly string[];
+          }> = [];
+          const selectedIds = new Set<string>();
+
+          for (const [index, requestedItem] of input.items.entries()) {
+            signal.throwIfAborted();
+            const prepared = prepareProgramDraftContext({
+              caseContext: storedWorkspace.caseContext,
+              currentDraft: storedWorkspace.draft,
+              searches: [
+                {
+                  query: requestedItem?.query,
+                  bodyRegion: requestedItem?.bodyRegion,
+                  goal: requestedItem?.goal,
+                  equipment: requestedItem?.equipment,
+                  phaseTag: requestedItem?.phaseTag,
+                  difficulty: requestedItem?.difficulty,
+                  maxResults: 1,
+                },
+              ],
+            });
+            if (!prepared.ok) return prepared;
+            if (prepared.value.caseIssues.length > 0) {
+              return {
+                ok: false as const,
+                errors: prepared.value.caseIssues,
+              };
+            }
+            const movement = prepared.value.movements[0];
+            if (!movement) {
+              return {
+                ok: false as const,
+                errors: [
+                  {
+                    code: "exercise_not_found",
+                    message: `No curated exercise matched movement request ${index + 1}.`,
+                    field: `items.${index}.query`,
+                    recoverable: true,
+                  },
+                ],
+              };
+            }
+            if (selectedIds.has(movement.id)) {
+              return {
+                ok: false as const,
+                errors: [
+                  {
+                    code: "duplicate_exercise",
+                    message: `${movement.name} was selected more than once. Use distinct movement requests.`,
+                    field: `items.${index}.query`,
+                    recoverable: true,
+                  },
+                ],
+              };
+            }
+            selectedIds.add(movement.id);
+            programItems.push({
+              exerciseId: movement.id,
+              sets: requestedItem.sets,
+              reps: requestedItem.reps,
+              holdSeconds: requestedItem.holdSeconds,
+              frequencyPerDay: requestedItem.frequencyPerDay,
+              restSeconds: requestedItem.restSeconds,
+              therapistNote: requestedItem.therapistNote,
+            });
+            selectedMovements.push({
+              exerciseId: movement.id,
+              name: movement.name,
+              precautions: movement.precautions,
+              contraindications: movement.contraindications,
+            });
+          }
+
           const result = createProgramDraft({
-            caseContext: input.caseContext,
-            items: input.items,
+            caseContext: storedWorkspace.caseContext,
+            items: programItems,
             source: "agent",
             revision: currentRevision + 1,
           });
@@ -477,6 +633,7 @@ export default function TherapistWorkspace({
               draftId: result.value.id,
               itemCount: result.value.items.length,
               estimatedMinutes: result.value.estimatedMinutes,
+              selectedMovements,
               warnings: result.value.warnings.slice(0, 3),
               status: "awaiting_therapist_review",
             },

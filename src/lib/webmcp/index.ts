@@ -18,10 +18,12 @@ export {
   draftProgramSchema,
   getExerciseDetailsSchema,
   getProgramEditorStateSchema,
+  prepareDraftContextSchema,
   searchExercisesSchema,
   type DraftProgramInput,
   type GetExerciseDetailsInput,
   type GetProgramEditorStateInput,
+  type PrepareDraftContextInput,
   type SearchExercisesInput,
   type TherapistToolHandlers,
 } from "./therapist-tools.ts";

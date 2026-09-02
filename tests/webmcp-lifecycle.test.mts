@@ -315,6 +315,7 @@ test("route transitions and repeated back/forward keep one exact tool set", asyn
     "get_exercise_details",
     "get_program_editor_state",
     "draft_program",
+    "prepare_draft_context",
   ];
   const path = [dashboard, hub, editor, hub, [], hub, editor, hub, dashboard];
   let previous: ReturnType<typeof startWebMcpRegistration> | undefined;

@@ -20,7 +20,7 @@ The durable implementation plan is in
 6. Client detail shows the active version, earlier immutable versions and
    attributed activity. Old patient links keep their original dosage.
 
-Ten WebMCP tools are split across five route surfaces:
+Eleven WebMCP tools are split across five route surfaces:
 
 | Route | Tool | Effect |
 | --- | --- | --- |
@@ -28,19 +28,21 @@ Ten WebMCP tools are split across five route surfaces:
 | `/therapist/clients/[clientId]` | `get_client_summary` | Reads visible context, current/active plans, up to 20 history entries and five recent activities. |
 | `/therapist/clients/[clientId]` | `get_adherence_summary` | Reads identity-free completion, RPE/pain, deviations and latest safe motion observations from the active program's validated patient session. |
 | Program editor | `get_program_editor_state` | Reads the route-bound draft revision and confirmation state. |
+| Program editor | `prepare_draft_context` | Optional read-only planning path for ambiguous requests; batch-searches compact dosage and safety details without writing. |
 | Program editor | `search_exercises` | Read-only structured catalog search. |
 | Program editor | `get_exercise_details` | Read-only timing, precautions and contraindications. |
-| Program editor | `draft_program` | Revision-guarded visible draft only; never confirms or activates it. |
+| Program editor | `draft_program` | Preferred one-call path for an explicitly requested draft: resolves ordered movement searches against the route-bound case and writes only a visible review draft; never confirms or activates it. |
 | `/motion-lab` | `get_latest_motion_lab_set_result` | Reads the latest completed or stopped isolated-demo set aggregate only after the user asks for a review; it cannot monitor the active set and exposes no camera details or raw motion series. |
 | `/patient/[code]` | `review_completed_set` | Reads the latest persisted, checked-in camera set with its therapist-confirmed target, aggregate observations and explicit RPE/pain; it cannot monitor or control the set. |
 | `/patient/[code]` | `stage_next_set_focus` | Revision-guarded write that stages one evidence-linked suggestion for visible human Accept/Dismiss; it cannot change prescription dosage or start a set. |
 
 The editor route is
-`/therapist/clients/[clientId]/programs/[programId]`. The six route-owned read
-tools—`list_clients`, `get_client_summary`, `get_program_editor_state`, and
-the two post-set motion review tools—accept `{}` only: the page, not a supplied
-identifier, owns their context. They read
-the same hydrated projection as the UI without seeding or writing storage.
+`/therapist/clients/[clientId]/programs/[programId]`. Six route-owned snapshot
+tools—`list_clients`, `get_client_summary`, `get_adherence_summary`,
+`get_program_editor_state`, and the two post-set result tools—accept `{}` only:
+the page, not a supplied identifier, owns their context. Structured catalog
+tools accept search intent but no client or program target. They read the same
+hydrated projection as the UI without accepting cross-route scope.
 
 Navigation aborts the previous registration owner and its in-flight calls.
 Changing filters or draft dosage does not re-register the route's tools.
@@ -122,7 +124,7 @@ is stored in the patient session.
   and an explicit voice preview
 - Raw video and raw landmark frames are never saved in the summary
 
-The current automated suite baseline is 217 passing tests, and the deterministic
+The current automated suite baseline is 235 passing tests, and the deterministic
 fixture plus model loading pass headless Chromium. These software checks do not
 mean that a physical camera has passed. A user-assisted device, cleanup,
 tracking-loss, and 5–8 repetition accuracy run remains a release gate. Per the
@@ -209,7 +211,7 @@ The current therapist checkpoint has passed:
 - Headless runtime, network, image, layout, and basic accessibility checks
 - Manual add, edit/reorder, confirm, patient-link, and local persistence probes
 - Native Codex in-app Browser discovery and invocation of the route-owned tools;
-  ten tools are now implemented across five surfaces
+  eleven tools are now implemented across five surfaces
 - Route cleanup showing no WebMCP tools on the landing page
 - Same-browser therapist confirmation through patient-session completion
 - Patient pain-gate and in-app Browser refresh-recovery probes
@@ -217,7 +219,7 @@ The current therapist checkpoint has passed:
   self-hosted MediaPipe GPU runtime/model load
 - Permission-first camera-domain, exact-device constraint, device fallback,
   tracking-loss reset, side-hysteresis, and terminal-only result-tool tests;
-  `npm test` currently reports 217 passing tests
+  `npm test` currently reports 235 passing tests
 - Native post-set Motion Lab WebMCP verification: pre-set reads return
   `result_unavailable`, while a fresh 6/6 OBS demo result is available only
   after completion with no raw frames, landmarks, or time series

@@ -53,7 +53,7 @@ the main act:
 | --- | --- | --- |
 | `0:00–0:12` | Begin in `/therapist` on the synthetic client directory, then open `Demo Client — Knee`. Keep the professional case UI—not motion footage—as the first image. | “A therapist should not spend a visit assembling repetitive home-exercise paperwork. But an agent should never make the clinical decision. CoachPoint separates those jobs.” |
 | `0:12–0:27` | Show the client context: knee mobility, stair confidence, twelve-minute target, and available support equipment. Click `New prescription` and enter the editor. | “This synthetic knee case starts with goals, available time, and equipment defined by the therapist. No real patient identity is required.” |
-| `0:27–0:58` | Ask Prompt A in ordinary therapist language. Do not name functions or schema fields. Keep the agent's real call cards visible afterward: `get_program_editor_state`, search, details, then `draft_program`. Cut waiting time only. End on the `Agent-created` draft in the UI. | “Through WebMCP, the agent reads the route-bound editor revision, searches the curated movement library, checks dosage defaults, precautions, and contraindications, then assembles a visible draft in the real workspace.” |
+| `0:27–0:50` | Ask Prompt A in ordinary therapist language. Do not name functions or schema fields. Keep the single `draft_program` call visible, then retain the `Agent-created` draft appearing in the UI. The explicit request already authorizes a reversible review draft, so there is no second approval exchange. Cut waiting time only. | “Through WebMCP, one route-bound action searches the curated movement library, checks dosage, precautions, contraindications, and assembles a visible draft in the real workspace.” |
 | `0:58–1:13` | Pause on both exercise illustrations and the daily estimate. Expand `clinical review notes` and show the warnings, then collapse them. | “The result is not hidden in chat. The therapist can inspect every movement, the daily estimate, and the clinical review notes directly in the interface.” |
 | `1:13–1:36` | Move `Supported Half Squat` above `Supported Heel Raise`. Open `Edit dosage`, change Half Squat from `10` to `8`, close editing, and show the updated estimate. | “I can now apply professional judgment: reorder the session and reduce the camera-tracked set from ten repetitions to eight. The agent's draft remains fully editable.” |
 | `1:36–1:47` | Click `Confirm prescription` yourself. Hold the confirmed badge and patient link for one second. | “There is deliberately no confirmation tool. Only the therapist can confirm and activate the prescription.” |
@@ -87,9 +87,13 @@ Why this order and `10` are intentional: the human moves Half Squat to the top
 and edits `10` to `8`. That makes ordering, dosage judgment, and confirmation
 visibly human-controlled instead of reducing the therapist to a final click.
 
-Expected agent behavior, shown by the tool-call cards but never spoken by the
-user: read the editor state, search for suitable catalog movements, inspect the
-two selected movements, then create one visible draft using the live revision.
+Expected agent behavior, shown by the tool-call card but never spoken by the
+user: call `draft_program` once with the two ordered movement intents and their
+dosage. The tool reads the live route-bound case and revision, resolves the
+curated movements, checks safety and duration, and writes one visible draft.
+Because Prompt A explicitly asks to create a reversible draft, the agent should
+not ask for redundant approval. Clinical confirmation still happens later and
+only through the therapist UI.
 
 ## Prompt B — natural patient follow-up
 
@@ -169,10 +173,10 @@ adherence tool once, then summarizes only the returned fields.
 Practice the complete path three times before recording:
 
 1. Start a fresh `Demo Client — Knee` prescription.
-2. Confirm that the editor reports four tools ready.
-3. Ask natural-language Prompt A. Verify that the agent independently chooses
-   the editor-state, search, detail, and draft tools; the user must not name
-   them.
+2. Confirm that the editor reports five tools ready.
+3. Ask natural-language Prompt A. Verify that the agent independently calls
+   `draft_program` once and the visible draft appears without a second approval
+   exchange; the user must not name the tool.
 4. Expand the clinical review notes, move Half Squat above Heel Raise, and edit
    `10` to `8`.
 5. Confirm by human click and verify the patient program contains four total
@@ -193,7 +197,8 @@ show the same numbers and no manual fallback is needed.
 | Symptom | Recovery before the next take |
 | --- | --- |
 | Site tools are absent | Confirm the correct route and ready badge, then reload that route once. Do not call therapist tools from the patient page or vice versa. |
-| `draft_revision_conflict` | Call `get_program_editor_state` again and recreate the draft using the newest revision. |
+| `visible_draft_must_be_empty` | Start a fresh prescription for the take; the agent intentionally cannot replace a visible draft. |
+| Agent asks permission before creating the draft | Restart the take and restate Prompt A exactly; its explicit request already authorizes the review draft. Do not add a technical approval line. |
 | Agent tries to confirm | Leave the behavior visible: there is no confirmation tool. Use the therapist UI button yourself. |
 | OBS is not selected | Stop before recording, open camera settings, choose OBS, and let the browser remember it. |
 | Repetitions do not count | Use a side or slight-oblique view; keep hip/knee/ankle visible; hold both the standing and lowered endpoints for several frames. |
