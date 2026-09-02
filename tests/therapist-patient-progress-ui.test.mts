@@ -30,3 +30,12 @@ test("therapist client hub shows adherence and checked-in motion observations", 
   assert.match(source, /latestPatientMotion\.checkIn\.pain/);
   assert.doesNotMatch(source, /localStorage\.getItem/);
 });
+
+test("an empty disposable draft offers a genuinely fresh prescription", async () => {
+  const source = await readFile(hubPath, "utf8");
+
+  assert.match(source, /const disposableEmptyDraft = Boolean/);
+  assert.match(source, /replaceEmptyDraft: disposableEmptyDraft/);
+  assert.match(source, /draftProgram && !disposableEmptyDraft/);
+  assert.match(source, /"New prescription"/);
+});

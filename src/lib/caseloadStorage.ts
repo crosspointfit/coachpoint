@@ -43,6 +43,7 @@ export interface CreateProgramForClientOptions
   extends CaseloadMutationOptions {
   programId?: string;
   draftId?: string;
+  replaceEmptyDraft?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -609,18 +610,33 @@ export function createProgramForClient(
   const createdAt = timestamp(options.now);
   const programId = options.programId ?? secureId("program");
   const draftId = options.draftId ?? secureId("draft");
+  const existingDraft = Object.values(store.programsById).find(
+    (program) =>
+      program.clientId === clientId && program.status === "draft",
+  );
+  const canReplaceEmptyDraft =
+    options.replaceEmptyDraft === true &&
+    existingDraft?.workspace.confirmedProgram === null &&
+    existingDraft.workspace.draft?.items.length === 0 &&
+    existingDraft.confirmedCodes.length === 0;
   if (
     !client ||
     !createdAt ||
     !isNonEmptyString(programId) ||
     !isNonEmptyString(draftId) ||
     store.programsById[programId] ||
-    Object.values(store.programsById).some(
-      (program) =>
-        program.clientId === clientId && program.status === "draft",
-    )
+    (existingDraft && !canReplaceEmptyDraft)
   ) {
     return null;
+  }
+
+  if (existingDraft && canReplaceEmptyDraft) {
+    store.programsById[existingDraft.programId] = {
+      ...existingDraft,
+      status: "archived",
+      archivedAt: createdAt,
+      updatedAt: createdAt,
+    };
   }
 
   const workspace: TherapistWorkspaceSnapshot = {

@@ -208,15 +208,23 @@ test("history summaries expose only the historical row fields, not active-card-o
 
 test("only a nonempty agent draft gets a needs-review follow-up flag", () => {
   const client = createSeedCaseload().clientsById["demo-knee"];
-  for (const record of [
-    program(client, "therapist-draft", { source: "therapist", itemCount: 2 }),
-    program(client, "empty-agent-draft", { source: "agent", itemCount: 0 }),
-  ]) {
-    const view = selectClientProgramView(client, [record]);
-    assert.equal(view.status, "draft");
-    assert.equal(view.nextStep.label, "Continue draft");
-    assert.equal(projectClientSummary(view).currentDraft?.needsReview, false);
-  }
+  const therapistDraft = program(client, "therapist-draft", {
+    source: "therapist",
+    itemCount: 2,
+  });
+  const therapistView = selectClientProgramView(client, [therapistDraft]);
+  assert.equal(therapistView.status, "draft");
+  assert.equal(therapistView.nextStep.label, "Continue draft");
+  assert.equal(projectClientSummary(therapistView).currentDraft?.needsReview, false);
+
+  const emptyAgentDraft = program(client, "empty-agent-draft", {
+    source: "agent",
+    itemCount: 0,
+  });
+  const emptyView = selectClientProgramView(client, [emptyAgentDraft]);
+  assert.equal(emptyView.status, "draft");
+  assert.equal(emptyView.nextStep.label, "New prescription");
+  assert.equal(projectClientSummary(emptyView).currentDraft?.needsReview, false);
 });
 
 test("archived versions never become active, remain in history, and cannot leak another client's programs", () => {

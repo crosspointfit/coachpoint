@@ -2,7 +2,7 @@
 
 Date prepared: 2026-09-01 (Asia/Taipei)
 
-Status: **pending user-assisted physical verification**. The current 235-test automated
+Status: **pending user-assisted physical verification**. The current 239-test automated
 baseline includes camera discovery/constraint/error contracts, tracking-loss
 reset, side hysteresis, deterministic fixtures, English voice-selection
 contracts, and local model loading. Cleanup and device-change handling are

@@ -54,7 +54,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   public chrome, including the footer. Ninety-two tests and responsive/browser
   QA pass. Source tokens and visual evidence are recorded in
   `docs/design/pt-hep/` and `design-qa.md`. That count records the homepage
-  checkpoint; the current suite baseline is 235 tests after camera, audio,
+  checkpoint; the current suite baseline is 239 tests after camera, audio,
   reusable runner/aggregate extraction, patient persistence/WebMCP, and the
   therapist feedback projection.
 - **Phase 5 — complete locally.** Confirmed programs open in the same browser,
@@ -82,7 +82,7 @@ Updated after the first implementation checkpoint on 2026-08-28:
   the browser reflex path and uses an immediate, non-verbal earcon; speech is
   reserved for a few set milestones rather than queued once per repetition.
   Natural voices rank ahead of novelty voices, an explicit voice choice is
-  persisted, and a preview is available. The current 235-test suite passes; the
+  persisted, and a preview is available. The current 239-test suite passes; the
   test fixture counts three repetitions and the self-hosted GPU runtime/model
   loads in headless Chromium. This is a software baseline, not real-camera
   acceptance. By explicit user decision, OBS is the provisional integration
@@ -748,7 +748,7 @@ Do not build a general expression or detection DSL in this phase. Use a typed de
 - Raw camera frames do not leave the browser.
 
 The deterministic and camera-domain portions of this gate are covered by the
-current 235-test software baseline. Physical-device behavior and counting
+current 239-test software baseline. Physical-device behavior and counting
 accuracy are still pending and must be recorded with the
 [user-assisted acceptance checklist](./docs/motion-lab-camera-acceptance.md);
 do not treat automated tests or headless model loading as a real-camera pass.

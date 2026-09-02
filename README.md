@@ -124,7 +124,7 @@ is stored in the patient session.
   and an explicit voice preview
 - Raw video and raw landmark frames are never saved in the summary
 
-The current automated suite baseline is 235 passing tests, and the deterministic
+The current automated suite baseline is 239 passing tests, and the deterministic
 fixture plus model loading pass headless Chromium. These software checks do not
 mean that a physical camera has passed. A user-assisted device, cleanup,
 tracking-loss, and 5–8 repetition accuracy run remains a release gate. Per the
@@ -219,7 +219,7 @@ The current therapist checkpoint has passed:
   self-hosted MediaPipe GPU runtime/model load
 - Permission-first camera-domain, exact-device constraint, device fallback,
   tracking-loss reset, side-hysteresis, and terminal-only result-tool tests;
-  `npm test` currently reports 235 passing tests
+  `npm test` currently reports 239 passing tests
 - Native post-set Motion Lab WebMCP verification: pre-set reads return
   `result_unavailable`, while a fresh 6/6 OBS demo result is available only
   after completion with no raw frames, landmarks, or time series

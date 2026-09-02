@@ -207,8 +207,15 @@ export default function ClientProgramHub({
     [patientSession],
   );
 
+  const disposableEmptyDraft = Boolean(
+    draftProgram &&
+    draftProgram.workspace.confirmedProgram === null &&
+    draftProgram.workspace.draft?.items.length === 0 &&
+    draftProgram.confirmedCodes.length === 0,
+  );
+
   const startPrescription = () => {
-    if (draftProgram) {
+    if (draftProgram && !disposableEmptyDraft) {
       router.push(
         `/therapist/clients/${client.id}/programs/${draftProgram.programId}`,
       );
@@ -216,7 +223,9 @@ export default function ClientProgramHub({
     }
     setCreating(true);
     setCreateError("");
-    const created = createProgramForClient(client.id);
+    const created = createProgramForClient(client.id, {
+      replaceEmptyDraft: disposableEmptyDraft,
+    });
     if (!created) {
       setCreating(false);
       setCreateError(
@@ -294,7 +303,7 @@ export default function ClientProgramHub({
               <PlusIcon className="h-5 w-5" aria-hidden="true" />
               {creating
                 ? "Creating draft…"
-                : draftProgram
+                : draftProgram && !disposableEmptyDraft
                   ? "Continue draft"
                   : "New prescription"}
             </button>

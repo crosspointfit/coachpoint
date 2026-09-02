@@ -13,21 +13,21 @@ import HomeExerciseGallery from "@/components/home/HomeExerciseGallery";
 const STEPS = [
   {
     number: "01",
-    title: "Start with the person.",
-    body: "Choose a client and set the goals, available time and equipment. The case gives every draft its boundaries.",
-    detail: "A clear clinical starting point",
+    title: "Set the clinical boundaries.",
+    body: "Define the goal, available time, equipment and safety notes before a movement enters the plan.",
+    detail: "Your context guides every draft",
   },
   {
     number: "02",
-    title: "Build the plan together.",
-    body: "Find movements yourself or ask an agent for a first draft. Adjust the dosage and order in the same workspace.",
-    detail: "One draft, shared by you and your agent",
+    title: "Create a review-ready draft.",
+    body: "Choose from the illustrated library or ask an agent to assemble the first version. Then adjust dosage and order in the same workspace.",
+    detail: "The repetitive work, handled in minutes",
   },
   {
     number: "03",
-    title: "Make the final call.",
-    body: "Review and confirm the prescription. Open the patient view, with earlier confirmed versions kept intact.",
-    detail: "Your approval, every time",
+    title: "Follow what happens at home.",
+    body: "Confirm the prescription yourself, then let the patient follow it in the browser and bring useful set results back to the next visit.",
+    detail: "Patient follow-up without giving up control",
   },
 ] as const;
 
@@ -77,23 +77,24 @@ export default function HomePage() {
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-primary-100 bg-white px-3.5 py-2 text-xs font-bold text-primary-700">
               <ShieldCheckIcon className="h-4 w-4" aria-hidden="true" />
-              CoachPoint for therapists
+              Home exercise programs for physical therapists
             </p>
             <h1 id="home-heading" className="mt-6 text-[40px] font-black leading-[1.12] tracking-[-0.035em] text-ink-900 sm:text-[54px] xl:text-[58px]">
-              Home exercise,<br />
-              <span className="text-primary-700">led by you.</span>
+              The home exercise workspace<br />
+              <span className="text-primary-700">for physical therapists.</span>
             </h1>
             <p className="mt-6 max-w-[510px] text-base leading-[1.85] text-slate-600 sm:text-lg">
-              Turn the right movements into a clear home exercise plan.
-              Draft with an agent, then review and refine every detail.
+              Rehab continues after the visit. Build a clear program in minutes,
+              let patients follow it in the browser, and review what happened—while
+              every clinical decision stays with you.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/therapist" className="home-primary-cta focus-ring">
-                Start a plan
+                Build a program
                 <ArrowRightIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </Link>
               <a href="#how-it-works" className="home-secondary-cta focus-ring">
-                How it works
+                See how it works
               </a>
             </div>
             <p className="mt-4 text-xs leading-5 text-slate-500">Try it with synthetic clients. No sign-up needed.</p>
@@ -122,8 +123,8 @@ export default function HomePage() {
                 <ClipboardDocumentCheckIcon className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-sm font-extrabold text-ink-900">Review comes first.</p>
-                <p className="mt-1 text-xs text-slate-500">A shared draft. Your final call.</p>
+                <p className="text-sm font-extrabold text-ink-900">Agent drafts. You decide.</p>
+                <p className="mt-1 text-xs text-slate-500">A visible plan, ready for clinical review.</p>
               </div>
             </div>
           </div>
@@ -135,8 +136,8 @@ export default function HomePage() {
       <section id="how-it-works" aria-labelledby="workflow-heading" className="scroll-mt-8 border-b border-border">
         <div className="home-container py-16 lg:py-20">
           <div className="max-w-2xl">
-            <p className="home-eyebrow">From clinical context to a clear plan</p>
-            <h2 id="workflow-heading" className="home-section-heading">A familiar workflow.<br />A helping hand with the details.</h2>
+            <p className="home-eyebrow">From prescription to follow-up</p>
+            <h2 id="workflow-heading" className="home-section-heading">One clear workflow,<br />before and after the visit.</h2>
           </div>
           <ol className="mt-10 grid gap-7 md:grid-cols-3 md:gap-8">
             {STEPS.map((step) => (
@@ -158,8 +159,8 @@ export default function HomePage() {
         <div className="home-container grid gap-8 py-16 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16 lg:py-20">
           <div>
             <p className="home-eyebrow">A few things to know</p>
-            <h2 id="questions-heading" className="home-section-heading">Clear boundaries.<br />No surprises.</h2>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-slate-500">Made for therapist-led decisions, with an optional agent alongside you.</p>
+            <h2 id="questions-heading" className="home-section-heading">Human judgment<br />stays in the loop.</h2>
+            <p className="mt-4 max-w-sm text-sm leading-7 text-slate-500">The agent helps with preparation and follow-up. The therapist remains responsible for the prescription.</p>
           </div>
           <div className="divide-y divide-border border-y border-border">
             {FAQS.map((faq, index) => (
@@ -179,11 +180,11 @@ export default function HomePage() {
         <div className="home-container flex flex-col items-start justify-between gap-8 py-14 lg:flex-row lg:items-center lg:py-16">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.13em] text-primary-100">Ready when you are</p>
-            <h2 id="start-heading" className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl">Make the next plan your own.</h2>
-            <p className="mt-4 text-sm leading-7 text-white/75">Start with a synthetic case and explore the full therapist-led workflow.</p>
+            <h2 id="start-heading" className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl">Build the next home program in minutes.</h2>
+            <p className="mt-4 text-sm leading-7 text-white/75">Start with a synthetic case and try the complete therapist-to-patient workflow.</p>
           </div>
           <Link href="/therapist" className="home-primary-cta focus-ring shrink-0">
-            Open workspace
+            Open therapist workspace
             <ArrowRightIcon className="h-[18px] w-[18px]" aria-hidden="true" />
           </Link>
         </div>

@@ -107,7 +107,8 @@ export function selectClientProgramView(
   const nonVersionHistoryPrograms = programs.filter(
     (program) =>
       program.programId !== draftProgram?.programId &&
-      program.confirmedCodes.length === 0,
+      program.confirmedCodes.length === 0 &&
+      (program.workspace.draft?.items.length ?? 0) > 0,
   );
   const draft = draftProgram?.workspace.draft;
   const status: ClientStatus = draftProgram
@@ -129,13 +130,23 @@ export function selectClientProgramView(
     active: "Active care plan",
     "no-plan": "Ready for a prescription",
   }[status];
-  const nextStep = draftProgram
+  const disposableEmptyDraft = Boolean(
+    draftProgram &&
+    draftProgram.confirmedCodes.length === 0 &&
+    draftProgram.workspace.confirmedProgram === null &&
+    draftProgram.workspace.draft?.items.length === 0,
+  );
+  const nextStep = draftProgram && !disposableEmptyDraft
     ? {
         label: status === "needs-review" ? "Review draft" : "Continue draft",
         href: programHref(client.id, draftProgram.programId),
       }
     : {
-        label: status === "active" ? "View care plan" : "Open client",
+        label: disposableEmptyDraft
+          ? "New prescription"
+          : status === "active"
+            ? "View care plan"
+            : "Open client",
         href: clientHref(client.id),
       };
 

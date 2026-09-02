@@ -408,6 +408,88 @@ test("create/list/get/read APIs persist stable program IDs and return clones", (
   );
 });
 
+test("a human new-prescription action atomically replaces only an empty disposable draft", () => {
+  const storage = new MemoryStorage();
+  const first = createProgramForClient(DEFAULT_SYNTHETIC_CLIENT_ID, {
+    storage,
+    now: NOW,
+    programId: "program_empty_old",
+    draftId: "draft_empty_old",
+  });
+  assert.ok(first);
+
+  const fresh = createProgramForClient(DEFAULT_SYNTHETIC_CLIENT_ID, {
+    storage,
+    now: LATER,
+    programId: "program_empty_fresh",
+    draftId: "draft_empty_fresh",
+    replaceEmptyDraft: true,
+  });
+  assert.ok(fresh);
+  assert.equal(fresh.status, "draft");
+  assert.equal(fresh.workspace.draft?.source, "therapist");
+  assert.equal(fresh.workspace.draft?.items.length, 0);
+
+  const stored = readCaseload({ storage });
+  assert.equal(stored.programsById.program_empty_old?.status, "archived");
+  assert.equal(stored.programsById.program_empty_old?.archivedAt, LATER);
+  assert.equal(stored.programsById.program_empty_fresh?.status, "draft");
+  assert.equal(stored.activeProgramId, "program_empty_fresh");
+  assert.equal(
+    Object.values(stored.programsById).filter(
+      (program) => program.clientId === DEFAULT_SYNTHETIC_CLIENT_ID && program.status === "draft",
+    ).length,
+    1,
+  );
+});
+
+test("new prescription never replaces a non-empty draft", () => {
+  const storage = new MemoryStorage();
+  const created = createProgramForClient(DEFAULT_SYNTHETIC_CLIENT_ID, {
+    storage,
+    now: NOW,
+    programId: "program_nonempty",
+    draftId: "draft_nonempty",
+  });
+  assert.ok(created?.workspace.draft);
+  const nonEmptyWorkspace: TherapistWorkspaceSnapshot = {
+    ...structuredClone(created.workspace),
+    draft: {
+      ...structuredClone(created.workspace.draft),
+      items: [
+        {
+          exerciseId: "wall-slide-flexion",
+          sets: 2,
+          reps: 8,
+          frequencyPerDay: 1,
+          restSeconds: 30,
+        },
+      ],
+      estimatedMinutes: 1.5,
+    },
+  };
+  assert.equal(
+    writeProgramWorkspace(created.programId, nonEmptyWorkspace, {
+      storage,
+      now: LATER,
+    }),
+    true,
+  );
+
+  assert.equal(
+    createProgramForClient(DEFAULT_SYNTHETIC_CLIENT_ID, {
+      storage,
+      now: "2026-08-30T10:00:00.000Z",
+      programId: "program_must_not_replace",
+      draftId: "draft_must_not_replace",
+      replaceEmptyDraft: true,
+    }),
+    null,
+  );
+  assert.equal(getProgram("program_nonempty", { storage })?.status, "draft");
+  assert.equal(getProgram("program_must_not_replace", { storage }), null);
+});
+
 test("client-scoped workspace APIs reject cross-client deep links and writes", () => {
   const storage = new MemoryStorage();
   const created = createProgramForClient(DEFAULT_SYNTHETIC_CLIENT_ID, {

@@ -5,11 +5,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "CoachPoint — Agent-native home exercise programs",
+    default: "CoachPoint — Home exercise workspace for physical therapists",
     template: "%s — CoachPoint",
   },
   description:
-    "A therapist-reviewed home exercise workflow where people and agents collaborate through WebMCP.",
+    "Build, review and follow home exercise programs in one therapist-led workspace, with optional agent assistance and browser-based patient sessions.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
