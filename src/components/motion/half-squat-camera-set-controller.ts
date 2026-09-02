@@ -83,6 +83,10 @@ export interface HalfSquatCameraSetControllerBindings {
   readonly getCanvasElement: () => HTMLCanvasElement | null;
   readonly onStateChange: (state: HalfSquatCameraSetState) => void;
   readonly onTerminal: (result: HalfSquatCameraSetTerminalResult) => void;
+  readonly onRepCompleted?: (
+    completedRepetition: number,
+    targetRepetitions: number,
+  ) => void;
   readonly releaseAudio?: () => void | Promise<void>;
 }
 
@@ -671,6 +675,16 @@ export function createHalfSquatCameraSetController(
             snapshot: step.snapshot,
             cue: step.analysis.valid ? step.update.cue : step.analysis.cue,
           });
+          if (step.update.event?.type === "rep_completed") {
+            try {
+              bindings.onRepCompleted?.(
+                step.update.event.record.rep,
+                step.snapshot.targetRepetitions,
+              );
+            } catch {
+              // Optional local feedback cannot interrupt counting or cleanup.
+            }
+          }
           if (step.targetReached) {
             finishTerminal("completed", token);
             return;

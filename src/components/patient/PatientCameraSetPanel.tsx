@@ -6,6 +6,8 @@ import {
   ExclamationTriangleIcon,
   HandRaisedIcon,
   ShieldCheckIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -30,6 +32,7 @@ import {
   savePatientCameraPreference,
   type PatientCameraPreference,
 } from "./patient-camera-preference";
+import type { PatientMotionAudioControls } from "./usePatientMotionAudioCoach";
 
 export interface PatientCameraSetPanelHandle {
   stop(reason?: string): void;
@@ -46,6 +49,7 @@ interface PatientCameraSetPanelProps {
   setIsActive: boolean;
   disabled: boolean;
   coachingFocus?: string;
+  audio: PatientMotionAudioControls;
   onBeginCameraSet: () => boolean;
   onCameraStartFailed: (setId: string) => void;
   onTerminal: (
@@ -85,6 +89,7 @@ const PatientCameraSetPanel = forwardRef<
     setIsActive,
     disabled,
     coachingFocus,
+    audio,
     onBeginCameraSet,
     onCameraStartFailed,
     onTerminal,
@@ -105,6 +110,9 @@ const PatientCameraSetPanel = forwardRef<
   const startInFlightRef = useRef(false);
   const immersiveRef = useRef<HTMLElement | null>(null);
   const endButtonRef = useRef<HTMLButtonElement | null>(null);
+  const audioArmForSet = audio.armForSet;
+  const audioCancelPlayback = audio.cancelPlayback;
+  const audioNotifyCompletedRep = audio.notifyCompletedRep;
 
   const camera = useHalfSquatCameraSet({
     targetRepetitions,
@@ -112,6 +120,7 @@ const PatientCameraSetPanel = forwardRef<
     targetSource: "therapist_confirmed",
     exerciseId,
     exerciseName,
+    onRepCompleted: audioNotifyCompletedRep,
     onTerminal: (result) => {
       const stopReason =
         result.outcome === "stopped"
@@ -119,6 +128,9 @@ const PatientCameraSetPanel = forwardRef<
             "Camera input ended before the prescribed target."
           : undefined;
       stopReasonRef.current = null;
+      if (result.outcome === "stopped") {
+        audioCancelPlayback();
+      }
       if (!onTerminal(setId, result, stopReason)) {
         setUnsavedTerminal({ result, stopReason });
       }
@@ -167,6 +179,7 @@ const PatientCameraSetPanel = forwardRef<
       startAttemptRef.current += 1;
       startInFlightRef.current = false;
       stopReasonRef.current = reason;
+      audioCancelPlayback();
       cameraStop();
 
       // A stream that is still opening has no aggregate to stage. Move the
@@ -176,7 +189,13 @@ const PatientCameraSetPanel = forwardRef<
         onCameraStartFailed(setId);
       }
     },
-    [cameraStop, getCameraState, onCameraStartFailed, setId],
+    [
+      audioCancelPlayback,
+      cameraStop,
+      getCameraState,
+      onCameraStartFailed,
+      setId,
+    ],
   );
 
   useImperativeHandle(forwardedRef, () => ({ stop }), [stop]);
@@ -218,6 +237,7 @@ const PatientCameraSetPanel = forwardRef<
     const attempt = startAttemptRef.current + 1;
     startAttemptRef.current = attempt;
     startInFlightRef.current = true;
+    audioArmForSet();
 
     let resolvedCamera: PatientCameraPreference | null;
     const liveState = getCameraState();
@@ -233,11 +253,13 @@ const PatientCameraSetPanel = forwardRef<
     if (!mountedRef.current || startAttemptRef.current !== attempt) return;
     if (!resolvedCamera) {
       startInFlightRef.current = false;
+      audioCancelPlayback();
       return;
     }
 
     if (!setIsActive && !onBeginCameraSet()) {
       startInFlightRef.current = false;
+      audioCancelPlayback();
       return;
     }
 
@@ -250,9 +272,12 @@ const PatientCameraSetPanel = forwardRef<
       mountedRef.current &&
       startAttemptRef.current === attempt
     ) {
+      audioCancelPlayback();
       onCameraStartFailed(setId);
     }
   }, [
+    audioArmForSet,
+    audioCancelPlayback,
     cameraStart,
     disabled,
     getCameraState,
@@ -278,6 +303,11 @@ const PatientCameraSetPanel = forwardRef<
     ) {
       setUnsavedTerminal(null);
     }
+  };
+
+  const useManualFallback = () => {
+    audioCancelPlayback();
+    onUseManualFallback();
   };
 
   const busy =
@@ -402,10 +432,25 @@ const PatientCameraSetPanel = forwardRef<
               </span>
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <ShieldCheckIcon className="h-5 w-5 text-primary-700" aria-hidden="true" />
-            <span className="hidden sm:inline">On-device pose tracking</span>
-            <span className="h-2 w-2 rounded-full bg-[#3FA976]" aria-label="Camera processing active" />
+          <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+            <div className="hidden items-center gap-2 sm:flex">
+              <ShieldCheckIcon className="h-5 w-5 text-primary-700" aria-hidden="true" />
+              <span>On-device pose tracking</span>
+              <span className="h-2 w-2 rounded-full bg-[#3FA976]" aria-label="Camera processing active" />
+            </div>
+            <button
+              type="button"
+              onClick={audio.toggleEnabled}
+              aria-pressed={audio.enabled}
+              className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-ink-900 hover:bg-slate-50"
+            >
+              {audio.enabled ? (
+                <SpeakerWaveIcon className="h-5 w-5 text-primary-700" aria-hidden="true" />
+              ) : (
+                <SpeakerXMarkIcon className="h-5 w-5 text-slate-500" aria-hidden="true" />
+              )}
+              {audio.enabled ? "Audio on" : "Audio off"}
+            </button>
           </div>
         </header>
       )}
@@ -598,7 +643,7 @@ const PatientCameraSetPanel = forwardRef<
                   </button>
                   <button
                     type="button"
-                    onClick={onUseManualFallback}
+                    onClick={useManualFallback}
                     className="focus-ring min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold text-slate-700"
                   >
                     Manual fallback
@@ -632,7 +677,7 @@ const PatientCameraSetPanel = forwardRef<
                     </div>
                     <button
                       type="button"
-                      aria-label="Camera settings"
+                      aria-label="Camera and audio settings"
                       aria-expanded={settingsOpen}
                       onClick={() => setSettingsOpen((open) => !open)}
                       disabled={busy}
@@ -663,7 +708,7 @@ const PatientCameraSetPanel = forwardRef<
                     </button>
                     <button
                       type="button"
-                      onClick={onUseManualFallback}
+                      onClick={useManualFallback}
                       disabled={disabled || busy}
                       className="focus-ring min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                     >
@@ -672,31 +717,118 @@ const PatientCameraSetPanel = forwardRef<
                   </div>
                 </div>
 
+                <div className="mt-4 flex items-start justify-between gap-4 border-t border-border pt-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">
+                      Audio coaching
+                    </p>
+                    <p
+                      id={`patient-audio-description-${setId}`}
+                      className="mt-1 text-sm font-semibold leading-5 text-ink-900"
+                    >
+                      A soft chime confirms each rep. English voice plays only at halfway, the last rep, and completion.
+                    </p>
+                  </div>
+                  <label className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-bold text-ink-900">
+                    <input
+                      type="checkbox"
+                      aria-label="Audio coaching"
+                      aria-describedby={`patient-audio-description-${setId}`}
+                      checked={audio.enabled}
+                      onChange={audio.toggleEnabled}
+                      className="focus-ring h-5 w-5 accent-[var(--cp-primary-700)]"
+                    />
+                    {audio.enabled ? "On" : "Off"}
+                  </label>
+                </div>
+
                 {settingsOpen && (
-                  <div className="mt-4 border-t border-border pt-4">
-                    {camera.state.devices.length > 0 ? (
-                      <label className="block text-xs font-bold text-slate-600">
-                        Camera
-                        <select
-                          value={displayedCameraId}
-                          disabled={disabled || busy}
-                          onChange={(event) =>
-                            handleCameraSelection(event.target.value)
-                          }
-                          className="focus-ring mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-ink-900 disabled:bg-slate-100"
-                        >
-                          {camera.state.devices.map((device, index) => (
-                            <option key={device.deviceId} value={device.deviceId}>
-                              {device.label || `Camera ${index + 1}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : (
-                      <p className="text-xs leading-5 text-slate-500">
-                        Available cameras appear here automatically after the first setup permission.
-                      </p>
-                    )}
+                  <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+                    <div>
+                      {camera.state.devices.length > 0 ? (
+                        <label className="block text-xs font-bold text-slate-600">
+                          Camera
+                          <select
+                            value={displayedCameraId}
+                            disabled={disabled || busy}
+                            onChange={(event) =>
+                              handleCameraSelection(event.target.value)
+                            }
+                            className="focus-ring mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-ink-900 disabled:bg-slate-100"
+                          >
+                            {camera.state.devices.map((device, index) => (
+                              <option key={device.deviceId} value={device.deviceId}>
+                                {device.label || `Camera ${index + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : (
+                        <p className="text-xs leading-5 text-slate-500">
+                          Available cameras appear here automatically after the first setup permission.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="md:border-l md:border-border md:pl-4">
+                      {audio.speechAvailable ? (
+                        <>
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                            <label className="block text-xs font-bold text-slate-600">
+                              Coach voice
+                              <select
+                                value={audio.selectedVoiceURI}
+                                disabled={!audio.enabled || busy}
+                                onChange={(event) =>
+                                  audio.changeVoice(event.target.value)
+                                }
+                                className="focus-ring mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-ink-900 disabled:bg-slate-100 disabled:text-slate-500"
+                              >
+                                {audio.englishVoices.map((voice) => (
+                                  <option key={voice.voiceURI} value={voice.voiceURI}>
+                                    {voice.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={audio.preview}
+                              disabled={!audio.enabled || busy}
+                              className="focus-ring h-11 rounded-xl border border-primary-700 px-3 text-xs font-bold text-primary-700 hover:bg-primary-100 disabled:border-slate-300 disabled:text-slate-400"
+                            >
+                              Preview
+                            </button>
+                          </div>
+                          <label className="mt-4 block text-xs font-bold text-slate-600">
+                            <span className="flex items-center justify-between">
+                              Voice volume
+                              <output className="font-mono font-bold text-slate-700">
+                                {Math.round(audio.volume * 100)}%
+                              </output>
+                            </span>
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="0.7"
+                              step="0.05"
+                              value={audio.volume}
+                              disabled={!audio.enabled}
+                              onChange={(event) =>
+                                audio.changeVolume(Number(event.target.value))
+                              }
+                              className="focus-ring mt-3 h-2 w-full accent-[var(--cp-primary-700)] disabled:opacity-40"
+                            />
+                          </label>
+                        </>
+                      ) : (
+                        <p className="text-xs leading-5 text-slate-500">
+                          Rep chimes are available. {audio.voiceListResolved
+                            ? "No compatible English voice is available in this browser."
+                            : "Natural English voices are still loading…"}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 

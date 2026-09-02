@@ -22,6 +22,10 @@ export interface UseHalfSquatCameraSetOptions {
   readonly targetRepetitions: number;
   readonly selectedCameraId: string | null;
   readonly onTerminal: (result: HalfSquatCameraSetTerminalResult) => void;
+  readonly onRepCompleted?: (
+    completedRepetition: number,
+    targetRepetitions: number,
+  ) => void;
   readonly targetSource?: MotionTargetSource;
   readonly exerciseId?: string;
   readonly exerciseName?: string;
@@ -79,6 +83,11 @@ export function useHalfSquatCameraSet(
           setState(nextState);
         },
         onTerminal: (result) => optionsRef.current.onTerminal(result),
+        onRepCompleted: (completedRepetition, targetRepetitions) =>
+          optionsRef.current.onRepCompleted?.(
+            completedRepetition,
+            targetRepetitions,
+          ),
         releaseAudio: () => optionsRef.current.releaseAudio?.(),
       },
       optionsRef.current.dependencies,

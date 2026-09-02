@@ -254,6 +254,7 @@ test("camera run completes through the runner and emits only a sanitized aggrega
   const runtime = fakeRuntime(detections);
   const constraints: MediaStreamConstraints[] = [];
   const terminals: HalfSquatCameraSetTerminalResult[] = [];
+  const completedRepEvents: Array<[number, number]> = [];
   let audioCancellations = 0;
   const mediaDevices = {
     async getUserMedia(value: MediaStreamConstraints) {
@@ -275,6 +276,9 @@ test("camera run completes through the runner and emits only a sanitized aggrega
       getCanvasElement: () => null,
       onStateChange: () => undefined,
       onTerminal: (result) => terminals.push(result),
+      onRepCompleted: (completedRepetition, targetRepetitions) => {
+        completedRepEvents.push([completedRepetition, targetRepetitions]);
+      },
       releaseAudio: () => {
         audioCancellations += 1;
       },
@@ -308,6 +312,7 @@ test("camera run completes through the runner and emits only a sanitized aggrega
   }
 
   assert.equal(terminals.length, 1);
+  assert.deepEqual(completedRepEvents, [[1, 1]]);
   const terminal = terminals[0]!;
   assert.equal(terminal.outcome, "completed");
   assert.equal(terminal.summary.completedRepetitions, 1);

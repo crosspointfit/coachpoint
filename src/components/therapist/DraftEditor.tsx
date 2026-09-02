@@ -39,7 +39,7 @@ interface DraftEditorProps {
 }
 
 const NUMBER_CLASS =
-  "focus-ring mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-center font-mono text-xs tabular-nums";
+  "focus-ring mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-center font-mono text-base! font-bold! tabular-nums text-ink-900";
 
 function dosageLabel(item: ProgramItem): string {
   const volume = item.reps
@@ -262,7 +262,7 @@ export default function DraftEditor({
                               <p className="truncate text-sm font-extrabold text-ink-900">
                                 {exercise.name}
                               </p>
-                              <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
                                 {dosageLabel(item)}
                               </p>
                             </div>
@@ -309,18 +309,18 @@ export default function DraftEditor({
                             type="button"
                             onClick={() => setEditingIndex(editing ? null : index)}
                             disabled={Boolean(confirmedProgram)}
-                            className="focus-ring mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-primary-700 hover:text-primary-800 disabled:cursor-not-allowed disabled:text-slate-300"
+                            className="focus-ring mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-base! font-bold! text-primary-700 hover:bg-primary-100 hover:text-primary-800 disabled:cursor-not-allowed disabled:text-slate-300"
                             aria-expanded={editing}
                           >
-                            <PencilSquareIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                            <PencilSquareIcon className="h-4 w-4" aria-hidden="true" />
                             {editing ? "Done editing" : "Edit dosage"}
                           </button>
                         </div>
                       </div>
 
                       {editing && (
-                        <div className="mt-3 grid grid-cols-5 gap-2 border-t border-border pt-3">
-                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-5 sm:gap-2.5">
+                          <label className="text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                             Sets
                             <input
                               className={NUMBER_CLASS}
@@ -333,7 +333,7 @@ export default function DraftEditor({
                               }
                             />
                           </label>
-                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                             Reps
                             <input
                               className={NUMBER_CLASS}
@@ -348,7 +348,7 @@ export default function DraftEditor({
                               }
                             />
                           </label>
-                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                             Hold
                             <input
                               className={NUMBER_CLASS}
@@ -363,7 +363,7 @@ export default function DraftEditor({
                               }
                             />
                           </label>
-                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                             Daily
                             <input
                               className={NUMBER_CLASS}
@@ -376,7 +376,7 @@ export default function DraftEditor({
                               }
                             />
                           </label>
-                          <label className="text-center text-[9px] font-bold uppercase tracking-[0.05em] text-slate-500">
+                          <label className="col-span-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600 sm:col-span-1">
                             Rest
                             <input
                               className={NUMBER_CLASS}

@@ -36,6 +36,7 @@ import {
 import PatientCameraSetPanel, {
   type PatientCameraSetPanelHandle,
 } from "./PatientCameraSetPanel";
+import { usePatientMotionAudioCoach } from "./usePatientMotionAudioCoach";
 import type { HalfSquatCameraSetTerminalResult } from "../motion/half-squat-camera-set-controller";
 
 interface PatientSessionWorkspaceProps {
@@ -84,6 +85,7 @@ export default function PatientSessionWorkspace({
     useState<readonly WebMcpToolDescriptor[]>([]);
   const sessionRef = useRef<PatientSession | null>(null);
   const cameraPanelRef = useRef<PatientCameraSetPanelHandle | null>(null);
+  const motionAudio = usePatientMotionAudioCoach();
 
   const commitSession = useCallback((next: PatientSession) => {
     if (!writePatientSession(code, next)) {
@@ -417,6 +419,7 @@ export default function PatientSessionWorkspace({
 
   const resetSession = () => {
     if (!program || !window.confirm("Restart this synthetic session?")) return;
+    motionAudio.cancelPlayback();
     cameraPanelRef.current?.stop("Patient restarted the session.");
     clearPatientSession(code);
     const created = createPatientSession(program);
@@ -436,6 +439,7 @@ export default function PatientSessionWorkspace({
   };
 
   const stopPatientSession = () => {
+    motionAudio.cancelPlayback();
     cameraPanelRef.current?.stop("Patient stopped the demo session.");
     const current = sessionRef.current;
     if (!current) return;
@@ -563,6 +567,7 @@ export default function PatientSessionWorkspace({
               pendingCoachingFocus !== null
             }
             coachingFocus={acceptedCoachingFocus?.focusText}
+            audio={motionAudio}
             onBeginCameraSet={beginCameraSet}
             onCameraStartFailed={handleCameraStartFailed}
             onTerminal={handleCameraTerminal}
@@ -729,7 +734,7 @@ export default function PatientSessionWorkspace({
                 </div>
               </dl>
               <div className="mt-4 rounded-xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold leading-6 text-ink-900">
-                “How did I do in that set? Use review_completed_set and explain the persisted result in plain language.”
+                “How did that set go? Please explain what was recorded in simple terms.”
               </div>
               <p className="mt-3 text-xs leading-5 text-slate-500">
                 The agent receives the saved aggregate and explicit check-in only—not video, landmarks, identifiers, or dosage-changing authority.

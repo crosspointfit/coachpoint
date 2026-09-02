@@ -10,6 +10,10 @@ const cameraPanelPath = new URL(
   "../src/components/patient/PatientCameraSetPanel.tsx",
   import.meta.url,
 );
+const patientAudioPath = new URL(
+  "../src/components/patient/usePatientMotionAudioCoach.ts",
+  import.meta.url,
+);
 
 function between(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -187,4 +191,49 @@ test("running camera UI preserves one mounted owner and moves scoring to post-se
   assert.match(source, /visibilitychange/);
   assert.match(source, /Camera result needs to be saved/);
   assert.match(source, />\s*Retry save\s*</);
+});
+
+test("patient-facing review prompt stays natural and hides internal tool names", async () => {
+  const source = await readFile(workspacePath, "utf8");
+
+  assert.match(
+    source,
+    /How did that set go\? Please explain what was recorded in simple terms\./,
+  );
+  assert.doesNotMatch(
+    source,
+    /How did I do in that set\? Use review_completed_set/,
+  );
+});
+
+test("patient camera flow exposes local opt-in audio without putting WebMCP in the rep loop", async () => {
+  const workspace = await readFile(workspacePath, "utf8");
+  const panel = await readFile(cameraPanelPath, "utf8");
+  const audio = await readFile(patientAudioPath, "utf8");
+
+  assert.match(workspace, /usePatientMotionAudioCoach\(\)/);
+  assert.match(workspace, /audio=\{motionAudio\}/);
+  assert.match(panel, /onRepCompleted: audioNotifyCompletedRep/);
+
+  const startBlock = between(panel, "const start =", "const retryTerminalSave =");
+  assert.match(startBlock, /audioArmForSet\(\)/);
+  assert.ok(
+    startBlock.indexOf("audioArmForSet()") <
+      startBlock.indexOf("await prepareCamera()"),
+  );
+  assert.match(panel, /Audio coaching/);
+  assert.match(panel, /A soft chime confirms each rep/);
+  assert.match(panel, /Audio on/);
+  assert.match(panel, /Voice volume/);
+  assert.match(panel, /Coach voice/);
+
+  assert.match(audio, /completedRepFeedback\(/);
+  assert.match(audio, /createAudioCoach\(/);
+  assert.match(audio, /selectEnglishVoice\(/);
+  assert.match(audio, /coachpoint\.motion\.voice-enabled/);
+  assert.match(audio, /coachpoint\.motion\.voice-volume/);
+  assert.doesNotMatch(
+    audio,
+    /useWebMcpTools|registerTool|document\.modelContext/,
+  );
 });
